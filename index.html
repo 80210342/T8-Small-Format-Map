@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>T8 Small Format Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#eee;color:#222;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#header{background:#003087;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:500}
+#hdr-stats{font-size:11px;opacity:.6;white-space:nowrap}
+#load-btn{padding:5px 12px;border-radius:7px;border:1.5px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0}
+#load-btn:hover{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.7)}
+#search-wrap{flex:1;max-width:300px;position:relative;margin-left:auto}
+#search-input{width:100%;padding:6px 30px 6px 10px;border-radius:7px;border:none;font-size:12px;background:rgba(255,255,255,.18);color:#fff;outline:none}
+#search-input::placeholder{color:rgba(255,255,255,.45)}
+#search-input:focus{background:rgba(255,255,255,.28)}
+#search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:15px;display:none;line-height:1}
+#search-results{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:3000;max-height:240px;overflow-y:auto;display:none}
+.sr-item{padding:9px 13px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;align-items:flex-start;gap:8px}
+.sr-item:hover{background:#f5f8ff}
+.sr-item:last-child{border-bottom:none}
+.sr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.sr-name{font-size:12px;font-weight:600;color:#111}
+.sr-meta{font-size:11px;color:#888;margin-top:1px}
+#main{flex:1;display:flex;overflow:hidden;position:relative}
+#map{flex:1;min-width:0}
+#rp{position:absolute;right:0;top:0;bottom:0;width:275px;background:#fff;border-left:1px solid #ddd;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .22s ease;z-index:900;box-shadow:-4px 0 14px rgba(0,0,0,.1)}
+#rp.open{transform:translateX(0)}
+#rp-head{padding:13px 13px 10px;border-bottom:1px solid #eee;display:flex;align-items:flex-start;gap:9px;flex-shrink:0}
+#rp-swatch{width:13px;height:13px;border-radius:50%;flex-shrink:0;margin-top:4px}
+#rp-info{flex:1}
+#rp-merch{font-size:16px;font-weight:700;line-height:1.2}
+#rp-sub{font-size:11px;color:#888;margin-top:3px}
+#rp-x{background:none;border:none;font-size:19px;color:#bbb;cursor:pointer;line-height:1;padding:0;flex-shrink:0}
+#rp-x:hover{color:#555}
+#rp-toggle{margin:9px 13px;padding:7px 12px;border-radius:7px;border:1.5px solid #ddd;background:#fafafa;font-size:12px;cursor:pointer;font-weight:500;text-align:center;transition:all .15s}
+#rp-stores{flex:1;overflow-y:auto}
+.rps{padding:9px 13px;border-bottom:1px solid #f5f5f5;cursor:pointer;transition:background .12s}
+.rps:hover{background:#f8f9ff}
+.rps-name{font-size:12px;font-weight:600;color:#111;margin-bottom:4px}
+.rps-badges{display:flex;flex-wrap:wrap;gap:4px}
+.badge{padding:1px 7px;border-radius:4px;font-size:10.5px;font-weight:600}
+#rp-foot{padding:10px 13px;border-top:1px solid #eee;font-size:12px;background:#fafafa;flex-shrink:0}
+#bottom{background:#fff;border-top:1px solid #ddd;padding:6px 14px 10px;flex-shrink:0}
+#status{font-size:11px;color:#888;margin-bottom:7px}
+#chain-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:7px}
+.chain-lbl{font-size:11px;color:#aaa;margin-right:2px;flex-shrink:0}
+.cbtn{padding:3px 10px;border-radius:99px;border:1.5px solid transparent;font-size:11.5px;cursor:pointer;font-weight:500;transition:all .15s;user-select:none;color:#fff}
+.cbtn.off{background:#eee !important;color:#999 !important;border-color:#ddd !important}
+.cbtn.has-sel{box-shadow:0 0 0 2px #fff,0 0 0 4px #003087}
+#route-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.r-lbl{font-size:11px;color:#aaa;margin-right:2px;flex-shrink:0}
+.ctrl-btn{font-size:11px;padding:3px 10px;border-radius:5px;border:1px solid #ccc;background:#f5f5f5;color:#555;cursor:pointer}
+.ctrl-btn:hover{background:#e8e8e8}
+.rchip{display:flex;align-items:center;border-radius:99px;border:1px solid #ddd;background:#fff;overflow:hidden;user-select:none;transition:opacity .15s}
+.rchip.muted{opacity:.28}
+.rchip-dot{width:26px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-right:1px solid rgba(0,0,0,.07);flex-shrink:0}
+.rchip-dot:hover{background:#f5f5f5}
+.dot-inner{width:9px;height:9px;border-radius:50%}
+.rchip-lbl{font-size:11.5px;color:#333;padding:0 9px 0 6px;cursor:pointer;white-space:nowrap}
+.rchip-lbl:hover{color:#003087}
+.ch-ctrl-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px}
+.ch-group-btn{padding:3px 10px;border-radius:99px;border:1.5px solid transparent;font-size:11px;cursor:pointer;font-weight:600;user-select:none;transition:all .15s;color:#fff}
+.ch-group-btn.off{background:#eee !important;color:#999 !important;border-color:#ddd !important}
+/* Modal */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:5000;display:none;align-items:center;justify-content:center}
+#modal-overlay.open{display:flex}
+#modal{background:#fff;border-radius:12px;width:480px;max-width:95vw;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;max-height:90vh;overflow:hidden}
+#modal-head{padding:16px 18px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between}
+#modal-head h2{font-size:16px;font-weight:700;color:#111}
+#modal-xbtn{background:none;border:none;font-size:20px;color:#bbb;cursor:pointer;line-height:1}
+#modal-xbtn:hover{color:#555}
+#modal-body{padding:18px;overflow-y:auto}
+#drop-zone{border:2px dashed #c8d6e8;border-radius:10px;padding:30px 20px;text-align:center;cursor:pointer;transition:all .15s;background:#f8faff;margin-bottom:16px}
+#drop-zone.drag-over{border-color:#003087;background:#eef3ff}
+#drop-zone.loaded{border-color:#28a745;background:#f0fff4;border-style:solid}
+#dz-icon{font-size:32px;margin-bottom:8px}
+#dz-title{font-size:14px;font-weight:600;color:#333;margin-bottom:4px}
+#dz-sub{font-size:12px;color:#888;margin-bottom:14px}
+#browse-btn{padding:7px 18px;border-radius:7px;border:1.5px solid #003087;background:#003087;color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+#file-input{display:none}
+.format-hint{background:#f5f5f5;border-radius:8px;padding:12px 14px;font-size:11.5px;color:#666;line-height:1.7;margin-bottom:16px}
+.format-hint strong{color:#333}
+#preview-box{display:none;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;margin-bottom:4px}
+#preview-head{background:#f5f5f5;padding:9px 13px;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #e0e0e0}
+#preview-list{max-height:200px;overflow-y:auto}
+.pv-row{display:flex;align-items:center;gap:8px;padding:7px 13px;border-bottom:1px solid #f5f5f5;font-size:12px}
+.pv-row:last-child{border-bottom:none}
+.pv-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.pv-code{font-weight:700;color:#003087;min-width:28px;font-size:11px}
+.pv-merch{font-weight:600;color:#111;min-width:100px}
+.pv-detail{color:#888}
+.pv-new{background:#fffbe6;color:#b7800a;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;margin-left:auto;flex-shrink:0}
+#modal-foot{padding:12px 18px;border-top:1px solid #eee;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+#apply-btn{padding:8px 22px;border-radius:7px;border:none;background:#003087;color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:none}
+#apply-btn:hover{background:#004db3}
+#apply-btn:disabled{background:#aaa;cursor:not-allowed}
+#cancel-btn{padding:8px 16px;border-radius:7px;border:1px solid #ccc;background:#f5f5f5;color:#555;font-size:13px;cursor:pointer}
+
+.chain-store-row{cursor:pointer;padding:9px 13px;border-bottom:1px solid #f5f5f5;transition:background .1s;border-left:3px solid transparent}
+.chain-store-row:hover{background:#f8f9ff}
+.chain-store-row.sel{background:#eff4ff !important;border-left-color:#003087}
+.chain-store-row.sel .rps-name{color:#003087}
+.rps-check{width:15px;height:15px;accent-color:#003087;flex-shrink:0;cursor:pointer;margin-top:2px}
+.stop-row{padding:9px 13px;border-bottom:1px solid #f5f5f5;cursor:pointer;display:flex;align-items:flex-start;gap:8px}
+.stop-row:hover{background:#f8f9ff}
+.stop-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;margin-top:1px}
+.stop-leg{font-size:10.5px;color:#888;margin-top:3px}
+
+.pt-row{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.pt-icon{font-size:12px;flex-shrink:0;width:18px;text-align:center}
+.pt-input{flex:1;padding:5px 8px;border-radius:5px;border:1px solid #ddd;font-size:11.5px;font-family:inherit;outline:none;min-width:0}
+.pt-input:focus{border-color:#003087}
+.pt-input.set{border-color:#28a745;background:#f0fff4}
+.pt-input.err{border-color:#dc3545;background:#fff5f5}
+.pt-loc-btn{padding:4px 7px;border-radius:5px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:11px;flex-shrink:0}
+.pt-loc-btn:hover{background:#e8e8e8}
+.pt-divider{border:none;border-top:1px solid #eee;margin:8px 0}
+
+.day-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px}
+.day-btn{padding:3px 10px;border-radius:99px;border:1.5px solid #ddd;background:#f5f5f5;color:#555;font-size:11.5px;font-weight:600;cursor:pointer;transition:all .15s;min-width:28px;text-align:center}
+.day-btn:hover{border-color:#003087;color:#003087}
+.day-btn.day-active{background:#003087;color:#fff;border-color:#003087}
+.ots-cat-strip{display:flex;gap:5px;flex-wrap:wrap;padding:8px 13px 4px;border-bottom:1px solid #f0f0f0}
+.ots-cat-btn{padding:3px 10px;border-radius:99px;border:1.5px solid transparent;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;opacity:.75}
+.ots-cat-btn:hover{opacity:1}
+.ots-cat-btn.ots-active{opacity:1;border-color:#333 !important}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div style="flex-shrink:0">
+    <div style="font-size:15px;font-weight:700">PepsiCo Beverages — T8 Small Format Map</div>
+    <div id="hdr-stats" style="font-size:11px;opacity:.6;margin-top:2px">Loading…</div>
+  </div>
+  <button id="load-btn" onclick="openModal()">📂 Update from Excel</button>
+  <button id="export-btn" onclick="exportPreGeocoded()"
+    style="padding:5px 12px;border-radius:7px;border:1.5px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0"
+    onmouseover="this.style.background='rgba(255,255,255,.25)'"
+    onmouseout="this.style.background='rgba(255,255,255,.12)'">⚡ Export Shared Version</button>
+  <div id="search-wrap">
+    <input id="search-input" type="text" placeholder="🔍  Search store or merchandiser…" autocomplete="off"/>
+    <button id="search-clear">✕</button>
+    <div id="search-results"></div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="map"></div>
+  <div id="route-float" style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:none;gap:8px;z-index:1000;pointer-events:all">
+    <button onclick="viewSavedRoute()" style="padding:8px 18px;border-radius:99px;border:none;background:#003087;color:#fff;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.3);white-space:nowrap">📋 View Route</button>
+    <button onclick="clearSavedRoute();clearChainSel();document.getElementById('rp').classList.remove('open')" style="padding:8px 16px;border-radius:99px;border:1.5px solid #f5c0c0;background:#fff;color:#b00;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.2);white-space:nowrap">✕ Clear Route</button>
+  </div>
+  <div id="rp">
+    <div id="rp-head">
+      <div id="rp-swatch"></div>
+      <div id="rp-info"><div id="rp-merch"></div><div id="rp-sub"></div></div>
+      <button id="rp-x">✕</button>
+    </div>
+    <button id="rp-toggle"></button>
+    <div id="rp-stores"></div>
+    <div id="rp-foot"></div>
+  </div>
+</div>
+
+<div id="bottom">
+  <div id="status">⏳ First open: geocoding 257 stores takes ~5 min. Subsequent opens are instant from cache.</div>
+  <div class="day-row">
+  <span class="chain-lbl">Days:</span>
+  <button class="day-btn" id="daybtn_M" onclick="toggleDay('M')">M</button>
+  <button class="day-btn" id="daybtn_T" onclick="toggleDay('T')">T</button>
+  <button class="day-btn" id="daybtn_W" onclick="toggleDay('W')">W</button>
+  <button class="day-btn" id="daybtn_R" onclick="toggleDay('R')">R</button>
+  <button class="day-btn" id="daybtn_F" onclick="toggleDay('F')">F</button>
+  <button class="day-btn" id="daybtn_S" onclick="toggleDay('S')">S</button>
+  <button class="day-btn" id="daybtn_U" onclick="toggleDay('U')">U</button>
+  <button class="ctrl-btn" onclick="clearDays()">Clear</button>
+  <span style="font-size:11px;color:#aaa;margin-left:2px">← filter stores by service day</span>
+</div>
+<div class="ch-ctrl-row">
+  <span class="chain-lbl">Channels:</span>
+  <button class="ch-group-btn" id="chg-gas"    style="background:#B5451B" onclick="toggleChannel('gas')">⛽ Gas &amp; C-Store</button>
+  <button class="ch-group-btn" id="chg-dollar" style="background:#28822A" onclick="toggleChannel('dollar')">💲 Dollar Channel</button>
+  <button class="ch-group-btn" id="chg-drug"   style="background:#B01C1C" onclick="toggleChannel('drug')">💊 Drug Channel</button>
+  <button class="ch-group-btn" id="chg-ots"    style="background:#7B61FF" onclick="toggleChannel('ots')">🏪 OTS</button>
+  <span style="margin-left:4px;color:#ddd">|</span>
+  <button class="ctrl-btn" onclick="setAllChains(true)">Show all</button>
+  <button class="ctrl-btn" onclick="setAllChains(false)">Hide all</button>
+</div>
+<div id="chain-row" style="margin-bottom:6px"></div>
+  <div id="route-row">
+    <span class="r-lbl">Routes:</span>
+    <button class="ctrl-btn" onclick="setAllRoutes(true)">Show all</button>
+    <button class="ctrl-btn" onclick="setAllRoutes(false)">Hide all</button>
+  </div>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-head">
+      <h2>📂 Update Territory Data</h2>
+      <button id="modal-xbtn" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body">
+      <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div id="dz-icon">📊</div>
+        <div id="dz-title">Drop your Excel file here</div>
+        <div id="dz-sub">or click to browse</div>
+        <button id="browse-btn" onclick="event.stopPropagation();document.getElementById('file-input').click()">Choose File</button>
+        <input type="file" id="file-input" accept=".xlsm,.xlsx,.csv"/>
+      </div>
+      <div class="format-hint">
+        <strong>Accepted:</strong> .xlsx, .xlsm &nbsp;·&nbsp; <strong>Sheet used:</strong> first non-weekend sheet<br>
+        <strong>Expected columns:</strong> Route · Name · Address · City · Week Vol · Delivery Day · Merch Name · Weekend<br>
+        Uploading a file <strong>replaces all current routes</strong> on the map.
+      </div>
+      <div id="preview-box">
+        <div id="preview-head"></div>
+        <div id="preview-list"></div>
+      </div>
+    </div>
+    <div id="modal-foot">
+      <button id="cancel-btn" onclick="closeModal()">Cancel</button>
+      <button id="apply-btn" onclick="applyNewData()">✓ Apply Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DEFAULT DATA — loaded from new_t8.xlsx format
+   Route code (K1, L1, etc.) shown in UI alongside merch name
+   ============================================================ */
+//__ROUTES_DATA_START__
+let ROUTES = [
+  { id:1, code:"800", merch:"Jonathan Haggard", color:"#E63946", stores:[
+    { n:"27 Phoenix Llc", a:"802 S Hardy Dr, Tempe, AZ", v:8.0, d:"T" },
+    { n:"7-Eleven #26096", a:"5125 S Mill Ave, Tempe, AZ", v:87.0, d:"F" },
+    { n:"A Kwik Mart", a:"606 W Broadway Rd, Tempe, AZ", v:2.0, d:"T" },
+    { n:"Ampm 82527 (Tem", a:"980 W University Dr, Tempe, AZ", v:76.0, d:"T" },
+    { n:"Arizona C Store", a:"1010 W Southern Ave, Tempe, AZ", v:31.0, d:"F" },
+    { n:"Carioca Oil #79", a:"4005 E Southern Ave, Phoenix, AZ", v:44.0, d:"W" },
+    { n:"Carioca Shell 7", a:"3444 S 40Th St, Phoenix, AZ", v:162.0, d:"WS" },
+    { n:"Carioca Shell 8", a:"808 S Priest Dr, Tempe, AZ", v:63.0, d:"T" },
+    { n:"Carniceria Los", a:"4705 E Southern Ave, Phoenix, AZ", v:23.0, d:"W" },
+    { n:"Carniceria Mr.", a:"1628 E Southern Ave, Phoenix, AZ", v:11.0, d:"R" },
+    { n:"Chevron Team Cb", a:"4737 E Broadway Rd, Phoenix, AZ", v:147.0, d:"WS" },
+    { n:"Circle K 00787", a:"939 W Baseline Rd, Tempe, AZ", v:47.7, d:"F" },
+    { n:"Circle K 01216", a:"3955 E Broadway Rd, Phoenix, AZ", v:77.4, d:"W" },
+    { n:"Circle K 01346", a:"1350 W University Dr, Tempe, AZ", v:65.2, d:"T" },
+    { n:"Circle K 01502", a:"1323 W Southern Ave, Tempe, AZ", v:30.1, d:"F" },
+    { n:"Circle K 01572", a:"904 W Broadway Rd, Tempe, AZ", v:57.1, d:"T" },
+    { n:"Circle K 01621", a:"1406 W Broadway Rd, Tempe, AZ", v:61.2, d:"T" },
+    { n:"Circle K 01637", a:"2402 E Southern Ave, Phoenix, AZ", v:52.0, d:"S" },
+    { n:"Circle K 01781", a:"1540 E Broadway Rd, Phoenix, AZ", v:72.5, d:"S" },
+    { n:"Circle K 01918", a:"3151 E Broadway Rd, Phoenix, AZ", v:62.6, d:"U" },
+    { n:"Circle K 02873", a:"3930 E Southern Ave, Phoenix, AZ", v:46.8, d:"W" },
+    { n:"Circle K 03379", a:"507 W Broadway Rd, Tempe, AZ", v:73.4, d:"T" },
+    { n:"Circle K 03398", a:"5240 S Rural Rd, Tempe, AZ", v:95.0, d:"F" },
+    { n:"Circle K 03425", a:"3950 E Baseline Rd, Phoenix, AZ", v:95.7, d:"R" },
+    { n:"Circle K 06646", a:"1619 W Baseline Rd, Tempe, AZ", v:37.8, d:"R" },
+    { n:"Circle K 08776", a:"1544 E Southern Ave, Phoenix, AZ", v:83.3, d:"R" },
+    { n:"Circle K 09172", a:"1435 W Baseline Rd, Guadalupe, AZ", v:62.6, d:"R" },
+    { n:"Circle K 09193", a:"3140 E Broadway Rd, Phoenix, AZ", v:71.4, d:"U" },
+    { n:"Cobblestone Aut", a:"616 W Baseline Rd, Tempe, AZ", v:26.0, d:"F" },
+    { n:"Cst Usa Inc #16", a:"2350 E Baseline Rd, Phoenix, AZ", v:45.9, d:"R" },
+    { n:"Cvs #7860", a:"1615 E Baseline Rd, Phoenix, AZ", v:11.0, d:"R" },
+    { n:"Dollar Tree 649", a:"4645 E Broadway Rd, Phoenix, AZ", v:37.0, d:"W" },
+    { n:"Dollar Tree 701", a:"425 W Baseline Rd, Tempe, AZ", v:41.0, d:"F" },
+    { n:"Eurest@Caris Li", a:"4550 S 44Th Pl, Phoenix, AZ", v:21.0, d:"W" },
+    { n:"Family Dollar #", a:"1635 E Southern Ave, Phoenix, AZ", v:35.0, d:"R" },
+    { n:"Family Dollar #", a:"2230 E Broadway Rd, Phoenix, AZ", v:55.0, d:"M" },
+    { n:"Family Dollar #", a:"4725 E Southern Ave, Phoenix, AZ", v:20.0, d:"W" },
+    { n:"Go Snap Shop", a:"830 W Broadway Rd, Tempe, AZ", v:3.0, d:"T" },
+    { n:"Lowe\'S Home Imp", a:"777 E Baseline Rd, Tempe, AZ", v:7.0, d:"F" },
+    { n:"Mill Fuel & Foo", a:"5124 S Mill Ave, Tempe, AZ", v:20.0, d:"F" },
+    { n:"New Broadway Fo", a:"1901 E Broadway Rd, Phoenix, AZ", v:8.0, d:"M" },
+    { n:"Quick Corner Li", a:"1555 E Baseline Rd, Phoenix, AZ", v:20.0, d:"R" },
+    { n:"Quiktrip 1403", a:"1550 E Baseline Rd, Phoenix, AZ", v:121.0, d:"MR" },
+    { n:"Quiktrip 400", a:"2111 W University Dr, Tempe, AZ", v:194.0, d:"TF" },
+    { n:"Quiktrip 432", a:"4075 S 32Nd St, Phoenix, AZ", v:196.0, d:"WS" },
+    { n:"Quiktrip 441", a:"918 E Baseline Rd, Tempe, AZ", v:125.0, d:"TF" },
+    { n:"Quiktrip 463", a:"4725 E Baseline Rd, Phoenix, AZ", v:116.0, d:"MR" },
+    { n:"Quiktrip 467", a:"3875 S Priest Dr, Tempe, AZ", v:125.0, d:"TF" },
+    { n:"Rollins Mkt", a:"1090 W 5Th St, Tempe, AZ", v:20.0, d:"T" },
+    { n:"S 40Th St Chevr", a:"2711 S 40Th St, Phoenix, AZ", v:59.0, d:"W" },
+    { n:"Sandhu Chevron", a:"808 E Baseline Rd, Tempe, AZ", v:14.0, d:"F" },
+    { n:"Smoke E Liquor", a:"1025 W Broadway Rd, Tempe, AZ", v:7.0, d:"T" },
+    { n:"Speedy Stop Liq", a:"5033 S 16Th St, Phoenix, AZ", v:20.0, d:"R" },
+    { n:"Star Mart Llc", a:"2785 W Baseline Rd, Tempe, AZ", v:22.0, d:"R" },
+    { n:"Sultan Smoke Sh", a:"2726 W Southern Ave, Tempe, AZ", v:5.0, d:"W" },
+    { n:"Walgreens 2398", a:"925 W Baseline Rd, Tempe, AZ", v:26.0, d:"F" },
+    { n:"Walgreens 4422", a:"3945 E Southern Ave, Phoenix, AZ", v:29.0, d:"W" },
+    { n:"Walgreens 6535", a:"2420 E Baseline Rd, Phoenix, AZ", v:26.0, d:"R" },
+  ]},
+  { id:2, code:"801", merch:"Zack Campain", color:"#2A9D8F", stores:[
+    { n:"3 Palms Market", a:"2115 S Mcclintock Dr, Tempe, AZ", v:17.0, d:"T" },
+    { n:"7-Eleven #13017", a:"1006 S Mcclintock Dr, Tempe, AZ", v:39.0, d:"F" },
+    { n:"7-Eleven #19650", a:"4748 E Mcdowell Rd, Phoenix, AZ", v:166.0, d:"S" },
+    { n:"7-Eleven #25845", a:"8402 E Mcdowell Rd, Scottsdale, AZ", v:56.0, d:"R" },
+    { n:"7-Eleven #27401", a:"4748 E Van Buren St, Phoenix, AZ", v:42.0, d:"S" },
+    { n:"Ampm 82764 Ots", a:"3233 S Mcclintock Dr, Tempe, AZ", v:9.0, d:"T" },
+    { n:"Ara @ Asu Mu Cs", a:"1290 S Normal Ave, Tempe, AZ", v:20.0, d:"W" },
+    { n:"Ara@Asu Greek V", a:"915 S Rural Rd, Tempe, AZ", v:12.0, d:"W" },
+    { n:"Ara@Asu Pod War", a:"671 E Apache Blvd, Tempe, AZ", v:16.0, d:"W" },
+    { n:"Ara@Asu Tooker", a:"599 E Veterans Way, Tempe, AZ", v:26.0, d:"W" },
+    { n:"Arco Gas Statio", a:"8378 E Mcdowell Rd, Scottsdale, AZ", v:11.0, d:"R" },
+    { n:"Az Pizza Compan", a:"400 E Rio Saldo Pkwy, Tempe, AZ", v:29.0, d:"W" },
+    { n:"Bad Habits # 60", a:"2044 E Southern Ave, Tempe, AZ", v:14.0, d:"T" },
+    { n:"Bhc Hayden Road", a:"304 N Hayden Rd, Scottsdale, AZ", v:21.0, d:"M" },
+    { n:"Carioca Shell 3", a:"1380 N Scottsdale Rd, Tempe, AZ", v:65.0, d:"S" },
+    { n:"Chevron Em 7013", a:"2309 E University Dr, Tempe, AZ", v:10.0, d:"F" },
+    { n:"Chevron Usa", a:"825 E Apache Blvd, Tempe, AZ", v:12.0, d:"W" },
+    { n:"Circle K 01636", a:"15 W Southern Ave, Tempe, AZ", v:57.4, d:"T" },
+    { n:"Circle K 01728", a:"6744 E Mcdowell Rd, Scottsdale, AZ", v:82.3, d:"S" },
+    { n:"Circle K 01797", a:"7602 E Mckellips Rd, Scottsdale, AZ", v:61.7, d:"S" },
+    { n:"Circle K 02891", a:"5146 E Mcdowell Rd, Phoenix, AZ", v:114.8, d:"UR" },
+    { n:"Circle K 06347", a:"8202 E Mcdowell Rd, Scottsdale, AZ", v:40.1, d:"R" },
+    { n:"Circle K 06460", a:"2174 E University Dr, Tempe, AZ", v:38.8, d:"F" },
+    { n:"Circle K 08557", a:"8001 E Mcdowell Rd, Scottsdale, AZ", v:64.7, d:"R" },
+    { n:"Circle K 08592", a:"2196 E Apache Blvd, Tempe, AZ", v:60.1, d:"F" },
+    { n:"Circle K 08774", a:"1802 E University Dr, Tempe, AZ", v:63.5, d:"F" },
+    { n:"Circle K 270953", a:"1900 N Scottsdale Rd, Tempe, AZ", v:86.3, d:"S" },
+    { n:"Circle K 2860", a:"5150 E Van Buren St, Phoenix, AZ", v:144.8, d:"MR" },
+    { n:"Cvs #0033", a:"1750 E Broadway Rd, Tempe, AZ", v:33.0, d:"T" },
+    { n:"Cvs #10928", a:"909 E Apache Blvd, Tempe, AZ", v:58.0, d:"W" },
+    { n:"Cvs #9205", a:"802 S Mill Ave, Tempe, AZ", v:68.0, d:"W" },
+    { n:"Denmart #2934", a:"809 S Rural Rd, Tempe, AZ", v:34.0, d:"W" },
+    { n:"Dollar Tree 105", a:"790 E Southern Ave, Tempe, AZ", v:42.0, d:"T" },
+    { n:"Dollar Tree 265", a:"7750 E Mcdowell Rd, Scottsdale, AZ", v:19.0, d:"R" },
+    { n:"Dollar Tree 820", a:"1737 E Broadway Rd, Tempe, AZ", v:52.0, d:"T" },
+    { n:"El Paisano Merc", a:"1035 E Lemon St, Tempe, AZ", v:54.0, d:"W" },
+    { n:"El Paisano Mini", a:"1101 S Rural Rd, Tempe, AZ", v:16.0, d:"W" },
+    { n:"Fairfield & Tow", a:"1929 E Rio Salado Pkwy, Tempe, AZ", v:4.0, d:"F" },
+    { n:"Fifth Street Ma", a:"200 E 5Th St, Tempe, AZ", v:20.0, d:"W" },
+    { n:"Honor Health Te", a:"1500 S Mill Ave, Tempe, AZ", v:51.0, d:"W" },
+    { n:"Jackson\'S C Sto", a:"2090 E Rio Salado Pkwy, Tempe, AZ", v:94.0, d:"F" },
+    { n:"Jerry\'S Liquors", a:"1217 S Rural Rd, Tempe, AZ", v:4.0, d:"W" },
+    { n:"La Milk Depot", a:"1626 N 87Th St, Scottsdale, AZ", v:80.0, d:"R" },
+    { n:"Legacy Liquor", a:"119 W University Dr, Tempe, AZ", v:39.0, d:"W" },
+    { n:"Level Up Liquor", a:"119 W University Dr, Tempe, AZ", v:19.0, d:"W" },
+    { n:"Liquor Express", a:"1605 E Apache Blvd, Tempe, AZ", v:5.0, d:"F" },
+    { n:"Los Amigos Mark", a:"1874 E Apache Blvd, Tempe, AZ", v:4.0, d:"T" },
+    { n:"Lowe\'S Home Imp", a:"7950 E Mcdowell Rd, Scottsdale, AZ", v:16.0, d:"R" },
+    { n:"Milk & Honey Ll", a:"115 W 6Th St, Tempe, AZ", v:48.0, d:"W" },
+    { n:"Mini Mart Plus", a:"5000 S Arizona Mls, Tempe, AZ", v:10.0, d:"T" },
+    { n:"On-Auk-Mor", a:"8001 E Mckellips Rd, Scottsdale, AZ", v:90.0, d:"M" },
+    { n:"Pride Gas And G", a:"1734 E Apache Blvd, Tempe, AZ", v:22.0, d:"F" },
+    { n:"Pride Liquor Ll", a:"1301 E University Dr Ste, Tempe, AZ", v:10.0, d:"F" },
+    { n:"Quick & Easy Ii", a:"1795 E University Dr, Tempe, AZ", v:28.0, d:"F" },
+    { n:"Quiktrip 1400", a:"2150 E University Dr, Tempe, AZ", v:126.0, d:"TF" },
+    { n:"Quiktrip 1418", a:"8780 E Mcdowell Rd, Scottsdale, AZ", v:129.0, d:"TR" },
+    { n:"Quiktrip 408", a:"1106 E Broadway Rd, Tempe, AZ", v:102.0, d:"TF" },
+    { n:"Quiktrip 429", a:"1545 N Scottsdale Rd, Tempe, AZ", v:121.0, d:"TR" },
+    { n:"Quiktrip 460", a:"2195 E Southern Ave, Tempe, AZ", v:117.0, d:"TF" },
+    { n:"Sams Club 4956", a:"2080 E Rio Salado Pkwy, Tempe, AZ", v:9.0, d:"F" },
+    { n:"Sam\'S Mkt", a:"8770 E Mcdowell Rd, Scottsdale, AZ", v:12.0, d:"R" },
+    { n:"Speedsmart", a:"1808 E Broadway Rd, Tempe, AZ", v:61.0, d:"W" },
+    { n:"Star Liqour", a:"1512 N Scottsdale Rd, Tempe, AZ", v:43.0, d:"M" },
+    { n:"T&B Holdings 21", a:"2180 E Broadway Rd, Tempe, AZ", v:15.0, d:"T" },
+    { n:"Tempe Market", a:"1125 S Terrace Rd, Tempe, AZ", v:6.0, d:"W" },
+    { n:"Total Wine & Mo", a:"1900 E Rio Salado Pkwy, Tempe, AZ", v:30.0, d:"F" },
+    { n:"Two Brothers Vi", a:"1925 N Scottsdale Rd, Tempe, AZ", v:32.0, d:"M" },
+    { n:"Walgreens 11610", a:"2000 S Mill Ave, Tempe, AZ", v:32.0, d:"W" },
+    { n:"Walgreens 1197", a:"1745 E Southern Ave, Tempe, AZ", v:40.0, d:"T" },
+    { n:"Walgreens 4138", a:"7923 E Mcdowell Rd, Scottsdale, AZ", v:32.0, d:"R" },
+  ]},
+  { id:3, code:"802", merch:"Andrea Smith", color:"#8338EC", stores:[
+    { n:"4 Sons 509", a:"1446 E Chandler Blvd, Phoenix, AZ", v:46.0, d:"T" },
+    { n:"7-Eleven #32265", a:"485 W Warner Rd, Tempe, AZ", v:82.0, d:"S" },
+    { n:"Aj Fine Foods 0", a:"7141 W Ray Rd, Chandler, AZ", v:19.0, d:"W" },
+    { n:"Amigos Carnicer", a:"9210 S Avenida Del Yaqui, Guadalupe, AZ", v:15.0, d:"R" },
+    { n:"At Home 206", a:"1050 W Elliot Rd, Tempe, AZ", v:12.0, d:"R" },
+    { n:"Az Liquors", a:"8207 S Avenida Del Yaqui, Guadalupe, AZ", v:14.0, d:"R" },
+    { n:"Banner Support", a:"7300 W Detroit St, Chandler, AZ", v:78.0, d:"F" },
+    { n:"Carioca Oil #88", a:"8810 S Hardy Dr, Tempe, AZ", v:75.0, d:"S" },
+    { n:"Chevron", a:"5002 E Chandler Blvd, Phoenix, AZ", v:24.0, d:"T" },
+    { n:"Circle K 01503", a:"905 E Guadalupe Rd, Tempe, AZ", v:61.6, d:"S" },
+    { n:"Circle K 03480", a:"4810 E Warner Rd, Phoenix, AZ", v:50.2, d:"R" },
+    { n:"Circle K 05282", a:"5060 E Warner Rd, Phoenix, AZ", v:50.0, d:"R" },
+    { n:"Circle K 05287", a:"4801 E Elliot Rd, Phoenix, AZ", v:60.5, d:"R" },
+    { n:"Circle K 05290", a:"1501 W Warner Rd, Tempe, AZ", v:81.1, d:"R" },
+    { n:"Circle K 05300", a:"7530 S Priest Dr, Tempe, AZ", v:69.6, d:"R" },
+    { n:"Circle K 05302", a:"6969 W Ray Rd, Chandler, AZ", v:61.0, d:"U" },
+    { n:"Circle K 06348", a:"995 W Elliot Rd, Tempe, AZ", v:50.4, d:"R" },
+    { n:"Circle K 09152", a:"5105 E Elliot Rd, Phoenix, AZ", v:43.3, d:"R" },
+    { n:"Circle K 09160", a:"1015 N Rural Rd, Chandler, AZ", v:43.7, d:"U" },
+    { n:"Circle K 09161", a:"4040 W Chandler Blvd, Chandler, AZ", v:124.1, d:"WS" },
+    { n:"Circle K 270705", a:"1130 W Warner Rd, Tempe, AZ", v:2.9, d:"U" },
+    { n:"Circle K 5032", a:"6950 W Chandler Blvd, Chandler, AZ", v:46.1, d:"F" },
+    { n:"Circle K 5283", a:"3201 E Chandler Blvd, Phoenix, AZ", v:58.4, d:"T" },
+    { n:"Circle K 5298", a:"1250 E Chandler Blvd, Phoenix, AZ", v:59.7, d:"T" },
+    { n:"Circle K 5400", a:"7351 W Chandler Blvd, Chandler, AZ", v:75.7, d:"F" },
+    { n:"Circle K 5549", a:"4939 E Ray Rd, Phoenix, AZ", v:104.5, d:"TF" },
+    { n:"Circle K 6360", a:"4410 E Ray Rd, Phoenix, AZ", v:80.4, d:"T" },
+    { n:"Circle K 6362", a:"4950 E Chandler Blvd, Phoenix, AZ", v:76.5, d:"T" },
+    { n:"Circle K 8591", a:"505 W Guadalupe Rd, Tempe, AZ", v:53.9, d:"S" },
+    { n:"Circle K 9164", a:"4001 E Chandler Blvd, Phoenix, AZ", v:23.0, d:"T" },
+    { n:"Cobblestone 31", a:"9969 S Priest Dr, Tempe, AZ", v:5.0, d:"W" },
+    { n:"Cobblestone Aut", a:"4601 E Chandler Blvd, Phoenix, AZ", v:30.0, d:"T" },
+    { n:"Cobblestone Aut", a:"7700 S Autoplex Loop, Tempe, AZ", v:35.0, d:"R" },
+    { n:"Cst Usa Inc #16", a:"7550 S Rural Rd, Tempe, AZ", v:24.4, d:"S" },
+    { n:"Cvs #0052", a:"4657 E Chandler Blvd, Phoenix, AZ", v:13.0, d:"T" },
+    { n:"Cvs #5950", a:"855 E Elliot Rd, Tempe, AZ", v:10.0, d:"M" },
+    { n:"Cvs #9290", a:"4430 E Ray Rd, Phoenix, AZ", v:10.0, d:"T" },
+    { n:"Dollar Tree 101", a:"910 E Elliot Rd, Tempe, AZ", v:16.0, d:"M" },
+    { n:"Dollar Tree 268", a:"1234 W Elliot Rd, Tempe, AZ", v:34.0, d:"R" },
+    { n:"Dollar Tree 346", a:"4005 E Chandler Blvd, Phoenix, AZ", v:12.0, d:"T" },
+    { n:"Dollar Tree 628", a:"5031 E Ray Rd, Phoenix, AZ", v:17.0, d:"T" },
+    { n:"Dollar Tree 983", a:"5051 E Elliot Rd, Phoenix, AZ", v:21.0, d:"R" },
+    { n:"Eurest@Intel C-", a:"5000 W Chandler Blvd, Chandler, AZ", v:13.0, d:"W" },
+    { n:"Eurest@Intel C-", a:"5000 W Chandler Blvd, Chandler, AZ", v:9.0, d:"W" },
+    { n:"Eurest@Intel C-", a:"5000 W Chandler Blvd, Chandler, AZ", v:16.0, d:"W" },
+    { n:"Eurest@Intel Oc", a:"4500 Dobson Rd, Chandler, AZ", v:0.01, d:"W" },
+    { n:"Eurest@Intel Oc", a:"4500 S Dobson Rd, Chandler, AZ", v:52.0, d:"W" },
+    { n:"Eurest@Intel Oc", a:"4500 S Dobson Rd, Chandler, AZ", v:46.0, d:"W" },
+    { n:"Eurest@Intel Oc", a:"4500 S Dobson Rd, Chandler, AZ", v:54.0, d:"W" },
+    { n:"Extra Mile 7000", a:"7000 W Chandler Blvd, Chandler, AZ", v:42.0, d:"F" },
+    { n:"Family Dollar #", a:"5801 E Calle Guadalupe, Guadalupe, AZ", v:30.0, d:"R" },
+    { n:"Foothills Car W", a:"5010 E Ray Rd, Phoenix, AZ", v:7.0, d:"T" },
+    { n:"Gas And Travel", a:"19405 S 40Th St, Phoenix, AZ", v:60.0, d:"F" },
+    { n:"Gila River B.E", a:"5139 E Wild Horse Pass Rd, Chandler, AZ", v:253.0, d:"MWF" },
+    { n:"Lone Butte 3 Ll", a:"6921 W Sundust Rd, Chandler, AZ", v:14.0, d:"F" },
+    { n:"Lone Butte Trad", a:"1280 S Kyrene Rd, Chandler, AZ", v:90.0, d:"F" },
+    { n:"Loves Travel St", a:"7001 W Sundust Rd, Chandler, AZ", v:141.0, d:"TF" },
+    { n:"Lowe\'S Home Imp", a:"7100 W Ray Rd, Chandler, AZ", v:10.0, d:"W" },
+    { n:"Marathon Food M", a:"4305 E Ray Rd, Phoenix, AZ", v:19.0, d:"T" },
+    { n:"Mission Market", a:"8818 S Avenida Del Yaqui, Guadalupe, AZ", v:59.0, d:"R" },
+    { n:"Quiktrip 1402", a:"4015 E Cottonwood Ln, Phoenix, AZ", v:120.0, d:"TF" },
+    { n:"Quiktrip 1420", a:"1190 W Elliot Rd, Tempe, AZ", v:122.0, d:"MR" },
+    { n:"Sam\'S Club Cafe", a:"700 N 54Th St, Chandler, AZ", v:12.0, d:"F" },
+    { n:"Shop N1 At Temp", a:"480 W Warner Rd, Tempe, AZ", v:11.0, d:"M" },
+    { n:"Tempe Trinity L", a:"475 W Guadalupe Rd, Tempe, AZ", v:16.0, d:"M" },
+    { n:"Total Wine & Mo", a:"8544 S Emerald Dr, Tempe, AZ", v:34.0, d:"M" },
+    { n:"Walgreens 11181", a:"5975 W Ray Rd, Chandler, AZ", v:23.0, d:"F" },
+    { n:"Walgreens 13870", a:"4875 E Elliot Rd, Phoenix, AZ", v:19.0, d:"R" },
+    { n:"Walgreens 3531", a:"4949 W Chandler Blvd, Chandler, AZ", v:40.0, d:"F" },
+    { n:"Walgreens 4046", a:"3960 E Chandler Blvd, Phoenix, AZ", v:21.0, d:"T" },
+    { n:"Walgreens 5569", a:"1315 E Chandler Blvd, Phoenix, AZ", v:15.0, d:"T" },
+  ]},
+  { id:4, code:"803", merch:"Terry Moore", color:"#F4A261", stores:[
+    { n:"4 Sons 510", a:"1205 W Baseline Rd, Mesa, AZ", v:15.0, d:"W" },
+    { n:"7-Eleven #20168", a:"810 W Baseline Rd, Mesa, AZ", v:29.0, d:"W" },
+    { n:"7-Eleven #21821", a:"815 S Alma School Rd, Mesa, AZ", v:40.0, d:"W" },
+    { n:"7-Eleven #27036", a:"815 S Dobson Rd, Mesa, AZ", v:104.0, d:"F" },
+    { n:"7-Eleven #27215", a:"2025 W Warner Rd, Chandler, AZ", v:33.0, d:"S" },
+    { n:"99 Ranch Market", a:"1920 W Chandler Blvd, Chandler, AZ", v:4.0, d:"R" },
+    { n:"Banner Desert M", a:"1400 S Dobson Rd, Mesa, AZ", v:879.0, d:"MWF" },
+    { n:"Chevron", a:"1989 W Ray Rd, Chandler, AZ", v:35.0, d:"R" },
+    { n:"Circle K 00433", a:"2709 W Guadalupe Rd, Mesa, AZ", v:30.0, d:"T" },
+    { n:"Circle K 01574", a:"2012 W Southern Ave, Mesa, AZ", v:120.8, d:"WU" },
+    { n:"Circle K 02854", a:"1262 W Chandler Blvd, Chandler, AZ", v:43.4, d:"R" },
+    { n:"Circle K 03452", a:"3033 N Dobson Rd, Chandler, AZ", v:109.2, d:"TF" },
+    { n:"Circle K 05401", a:"417 S Dobson Rd, Mesa, AZ", v:45.3, d:"F" },
+    { n:"Circle K 05973", a:"1405 N Alma School Rd, Chandler, AZ", v:113.1, d:"TF" },
+    { n:"Circle K 06461", a:"2808 S Dobson Rd, Mesa, AZ", v:82.2, d:"T" },
+    { n:"Circle K 06660", a:"2005 W Broadway Rd, Mesa, AZ", v:40.6, d:"F" },
+    { n:"Circle K 06663", a:"6349 S Mcclintock Dr, Tempe, AZ", v:51.0, d:"S" },
+    { n:"Circle K 09162", a:"1995 W Chandler Blvd, Chandler, AZ", v:78.2, d:"R" },
+    { n:"Circle K 09163", a:"2020 W Warner Rd, Chandler, AZ", v:52.5, d:"S" },
+    { n:"Circle K 09173", a:"1817 W Baseline Rd, Mesa, AZ", v:70.5, d:"W" },
+    { n:"Circle K 09182", a:"3989 W Ray Rd, Chandler, AZ", v:96.8, d:"R" },
+    { n:"Corner Stop", a:"2709 W Guadalupe Rd, Mesa, AZ", v:0.01, d:"T" },
+    { n:"Cvs #3967", a:"3990 W Ray Rd, Chandler, AZ", v:7.0, d:"R" },
+    { n:"Cvs #5315", a:"2005 N Dobson Rd, Chandler, AZ", v:20.0, d:"M" },
+    { n:"Cvs #9218", a:"1135 S Dobson Rd, Mesa, AZ", v:12.0, d:"W" },
+    { n:"Cvs #9283", a:"180 N Dobson Rd, Chandler, AZ", v:11.0, d:"R" },
+    { n:"Dj\'S Beer And W", a:"1840 W Southern Ave, Mesa, AZ", v:3.0, d:"W" },
+    { n:"Dollar General", a:"398 W Ray Rd, Chandler, AZ", v:34.0, d:"T" },
+    { n:"Dollar Tree 265", a:"1855 E Guadalupe Rd, Tempe, AZ", v:15.0, d:"M" },
+    { n:"Dollar Tree 530", a:"1110 W Southern Ave, Mesa, AZ", v:47.0, d:"W" },
+    { n:"Dollar Tree 578", a:"2600 W Chandler Blvd, Chandler, AZ", v:33.0, d:"R" },
+    { n:"Dollar Tree 631", a:"2050 N Alma School Rd, Chandler, AZ", v:24.0, d:"T" },
+    { n:"Dollar Tree 856", a:"2728 S Alma School Rd, Mesa, AZ", v:20.0, d:"T" },
+    { n:"Extra Mile 7014", a:"2165 E Baseline Rd, Tempe, AZ", v:17.0, d:"T" },
+    { n:"Family Dollar #", a:"865 S Dobson Rd, Mesa, AZ", v:70.0, d:"F" },
+    { n:"Full Circle C-2", a:"2755 W Chandler Blvd, Chandler, AZ", v:163.0, d:"MR" },
+    { n:"Gilligans On Ch", a:"1105 W Chandler Blvd, Chandler, AZ", v:66.0, d:"R" },
+    { n:"Gpm #4601", a:"4020 W Ray Rd, Chandler, AZ", v:18.0, d:"R" },
+    { n:"Grab & Go", a:"1605 W Broadway Rd, Mesa, AZ", v:22.0, d:"F" },
+    { n:"Greenfield Food", a:"1858 W Baseline Rd, Mesa, AZ", v:15.0, d:"W" },
+    { n:"Jz Foods", a:"2633 W Baseline Rd, Mesa, AZ", v:19.0, d:"T" },
+    { n:"Kwik Mart", a:"600 W Galveston St, Chandler, AZ", v:29.0, d:"T" },
+    { n:"Lowe\'S Home Imp", a:"2900 W Chandler Blvd, Chandler, AZ", v:9.0, d:"R" },
+    { n:"Mango Mini Mart", a:"760 S Alma School Rd, Mesa, AZ", v:9.0, d:"W" },
+    { n:"Quick And Easy", a:"7602 S Mcclintock Dr, Tempe, AZ", v:15.0, d:"M" },
+    { n:"Quick Run-Guada", a:"2659 W Guadalupe Rd, Mesa, AZ", v:43.0, d:"T" },
+    { n:"Quik Stop", a:"2259 W Broadway Rd, Mesa, AZ", v:20.0, d:"F" },
+    { n:"Quiktrip 1523", a:"2000 W Ray Rd, Chandler, AZ", v:125.0, d:"MR" },
+    { n:"Quiktrip 419R", a:"2026 W Broadway Rd, Mesa, AZ", v:149.0, d:"TF" },
+    { n:"Speedsmart 3", a:"1981 N Alma School Rd, Chandler, AZ", v:18.0, d:"T" },
+    { n:"Two Brothers X,", a:"1163 W Broadway Rd, Mesa, AZ", v:32.0, d:"W" },
+    { n:"Two Brothers Xi", a:"1150 W Baseline Rd, Mesa, AZ", v:39.0, d:"W" },
+    { n:"Walgreens 11182", a:"1130 W Southern Ave, Mesa, AZ", v:25.0, d:"W" },
+    { n:"Walgreens 2056", a:"1925 W Chandler Blvd, Chandler, AZ", v:18.0, d:"R" },
+    { n:"Walgreens 3727", a:"1919 N Dobson Rd, Chandler, AZ", v:53.0, d:"M" },
+    { n:"Walgreens 3768", a:"6404 S Mcclintock Dr, Tempe, AZ", v:22.0, d:"M" },
+    { n:"Walgreens 4376", a:"1825 E Warner Rd, Tempe, AZ", v:10.0, d:"M" },
+    { n:"Walgreens 9202", a:"1142 W Guadalupe Rd, Mesa, AZ", v:16.0, d:"T" },
+  ]},
+];
+//__ROUTES_DATA_END__
+
+/* ============================================================
+   ENGINE
+   ============================================================ */
+const COLOR_PALETTE = [
+  "#E63946","#F4A261","#2A9D8F","#1D6FA4","#8338EC","#06C77B",
+  "#D4A000","#E07000","#1A3F7A","#A07800","#D62BC2","#0099CC",
+  "#6600AA","#2968D0","#CC006E","#5C7080","#2E9C4F","#B01C1C",
+  "#D06800","#3647D1","#9B7700","#C2185B","#00796B","#FF6B6B",
+  "#4ECDC4","#45B7D1","#96CEB4","#BB8FCE","#F0B27A","#5DADE2"
+];
+
+const CHAIN_META = {
+  "Circle K":      "#CC2027",
+  "QuikTrip":      "#CC0000",
+  "7-Eleven":      "#008236",
+  "Walgreens":     "#E31837",
+  "CVS":           "#CC0000",
+  "Dollar Tree":   "#007A3B",
+  "Dollar General":"#FFCB00",
+  "Family Dollar": "#8B0000",
+  "Chevron":       "#E63946",
+  "Shell":         "#FF6800",
+  "ampm":          "#0057A8",
+  "OTS":           "#7B61FF"
+};
+
+function getChain(name){
+  const n=name.toLowerCase();
+  if(n.includes("circle k"))                        return "Circle K";
+  if(n.includes("quiktrip")||n.includes("qt "))     return "QuikTrip";
+  if(n.includes("7-eleven")||n.includes("7 eleven"))return "7-Eleven";
+  if(n.includes("walgreen"))                        return "Walgreens";
+  if(n.includes("cvs"))                             return "CVS";
+  if(n.includes("dollar tree"))                     return "Dollar Tree";
+  if(n.includes("dollar general"))                  return "Dollar General";
+  if(n.includes("family dollar"))                   return "Family Dollar";
+  if(n.includes("chevron")||n.includes("extra mile"))return "Chevron";
+  if(n.includes("shell"))                           return "Shell";
+  if(n.includes("ampm")||n.includes("am pm"))       return "ampm";
+  return "OTS";
+}
+
+let activeChains=new Set(Object.keys(CHAIN_META));
+let activeRoutes=new Set(ROUTES.map(r=>r.id));
+let searchTerm="";
+let allMarkers=[];
+let pendingRoutes=null;
+
+const CKEY="pepsi_t8_sf_v1";
+function loadCache(){try{return JSON.parse(localStorage.getItem(CKEY)||"{}");}catch(e){return{};}}
+function saveCache(c){try{localStorage.setItem(CKEY,JSON.stringify(c));}catch(e){}}
+
+async function geocode(addr,cache){
+  if(cache[addr]) return cache[addr];
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=us`,{headers:{"Accept-Language":"en"}});
+    const d=await r.json();
+    if(d&&d.length){const c={lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};cache[addr]=c;saveCache(cache);return c;}
+  }catch(e){}
+  return null;
+}
+
+function mkIcon(color,ini){
+  return L.divIcon({
+    html:`<div style="width:24px;height:24px;background:${color};border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:700;font-family:system-ui">${ini}</div>`,
+    iconSize:[24,24],iconAnchor:[12,12],popupAnchor:[0,-15],className:""
+  });
+}
+
+function enrichRoutes(routes){
+  routes.forEach(r=>r.stores.forEach(s=>{s.chain=getChain(s.n);s._route=r;if(s.chain==="OTS")s.otsCategory=getOTSCategory(s.n);}));
+}
+
+function refreshVisibility(){
+  allMarkers.forEach(({marker,store,route})=>{
+    const dayActive=activeDays.size>0;
+    const dayOk=dayActive&&[...activeDays].some(function(d){return (store.d||"").toUpperCase().includes(d);});
+    const otsCatOk=!(store.chain==="OTS"&&activeOTSCat)||store.otsCategory===activeOTSCat;
+    const routeChainOk=activeChains.has(store.chain)&&activeRoutes.has(route.id);
+    // Day filter overrides chain/route hiding — if day matches, show regardless
+    const searchOk=!searchTerm||store.n.toLowerCase().includes(searchTerm)||route.merch.toLowerCase().includes(searchTerm)||(route.code||"").toLowerCase().includes(searchTerm);
+    const show=(routeChainOk||dayOk)&&otsCatOk&&searchOk;
+    if(show&&!window._map.hasLayer(marker)) window._map.addLayer(marker);
+    if(!show&&window._map.hasLayer(marker)) window._map.removeLayer(marker);
+  });
+  ROUTES.forEach(r=>{
+    const el=document.getElementById(`rchip${r.id}`);
+    if(el) el.classList.toggle("muted",!activeRoutes.has(r.id));
+  });
+  const vis=allMarkers.filter(({marker})=>window._map.hasLayer(marker));
+  const vol=vis.reduce((s,{store})=>s+store.v,0);
+  document.getElementById("hdr-stats").textContent=`${vis.length} of ${allMarkers.length} stores visible · ${vol.toLocaleString()} vol/wk`;
+}
+
+function buildChainFilters(){
+  const row=document.getElementById("chain-row");
+  row.innerHTML="";
+  // Reset channel button states
+  Object.keys(channelState).forEach(function(ch){
+    channelState[ch]=true;
+    const btn=document.getElementById("chg-"+ch);
+    if(btn) btn.classList.remove("off");
+  });
+  const chains=[...new Set(ROUTES.flatMap(r=>r.stores.map(s=>s.chain)))].sort();
+  chains.forEach(ch=>{
+    const allChStores=ROUTES.flatMap(r=>r.stores).filter(s=>s.chain===ch);
+    const cnt=new Set(allChStores.map(s=>s.a)).size;
+    const col=CHAIN_META[ch]||"#666";
+    const btn=document.createElement("button");
+    btn.className="cbtn";btn.id=`cbtn_${ch.replace(/\W/g,"_")}`;
+    btn.style.background=col;btn.textContent=`${ch} (${cnt})`;
+    btn.onclick=()=>{
+      if(activeChains.has(ch)){activeChains.delete(ch);btn.classList.add("off");}
+      else{activeChains.add(ch);btn.classList.remove("off");btn.style.background=col;}
+      refreshVisibility();
+      openChainPanel(ch);
+    };
+    row.appendChild(btn);
+  });
+}
+
+function buildRouteLegend(){
+  const row=document.getElementById("route-row");
+  row.innerHTML=`<span class="r-lbl">Routes:</span>
+    <button class="ctrl-btn" onclick="setAllRoutes(true)">Show all</button>
+    <button class="ctrl-btn" onclick="setAllRoutes(false)">Hide all</button>`;
+  ROUTES.forEach(r=>{
+    const chip=document.createElement("div");
+    chip.className="rchip";chip.id=`rchip${r.id}`;
+    chip.innerHTML=`<div class="rchip-dot" id="rdot${r.id}"><div class="dot-inner" style="background:${r.color}"></div></div>
+      <div class="rchip-lbl" id="rlbl${r.id}">${r.code||("R"+r.id)} ${r.merch}</div>`;
+    row.appendChild(chip);
+    chip.querySelector(`#rdot${r.id}`).onclick=()=>{
+      if(activeRoutes.has(r.id)) activeRoutes.delete(r.id); else activeRoutes.add(r.id);
+      refreshVisibility();
+    };
+    chip.querySelector(`#rlbl${r.id}`).onclick=()=>openPanel(r);
+  });
+}
+
+let openPanelRoute=null;
+function openPanel(r){
+  clearSavedRoute();
+  currentChain=null; currentChannelId=null; currentDayPanel=null;
+  const oldStrip=document.querySelector('.ots-cat-strip');
+  if(oldStrip) oldStrip.remove();
+  // QOL: force-show this route's stores even if chains/routes are hidden
+  activeRoutes.add(r.id);
+  r.stores.forEach(s=>activeChains.add(s.chain));
+  // Update chain button states
+  r.stores.forEach(s=>{
+    const cbtn=document.getElementById("cbtn_"+(s.chain||"").replace(/\W/g,"_"));
+    if(cbtn){cbtn.classList.remove("off");cbtn.style.background=CHAIN_META[s.chain]||"#666";}
+  });
+  // Update route chip state
+  const chip=document.getElementById("rchip"+r.id);
+  if(chip) chip.classList.remove("muted");
+  refreshVisibility();
+
+  document.getElementById("rp-toggle").style.display="block";
+  openPanelRoute=r;
+  document.getElementById("rp-swatch").style.background=r.color;
+  document.getElementById("rp-merch").textContent=r.merch;
+  const tv=r.stores.reduce((s,x)=>s+x.v,0);
+  document.getElementById("rp-sub").textContent=`${r.code||("Route "+r.id)} · ${r.stores.length} stores · ${tv.toLocaleString()} vol/wk`;
+  updatePanelToggle(r);
+  // Render collapsible channel breakdown
+  renderRepBreakdown(r);
+
+  // Footer: chain breakdown summary chips
+  const chainSummary={};
+  r.stores.forEach(s=>{
+    chainSummary[s.chain]=(chainSummary[s.chain]||0)+1;
+  });
+  const topChains=Object.entries(chainSummary).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  const moreCount=Object.keys(chainSummary).length-topChains.length;
+  document.getElementById("rp-foot").innerHTML=
+    `<div style="font-size:12px;color:#555;margin-bottom:7px">
+      <strong>${r.stores.length} stores</strong> &nbsp;·&nbsp; <strong>${tv.toLocaleString()} vol/wk</strong>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">
+      ${topChains.map(([ch,cnt])=>{
+        const cc=CHAIN_META[ch]||"#666";
+        return `<span style="background:${cc}22;color:${cc};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${ch} (${cnt})</span>`;
+      }).join("")}
+      ${moreCount>0?`<span style="background:#f0f0f0;color:#777;padding:2px 8px;border-radius:4px;font-size:11px">+${moreCount} more</span>`:""}
+    </div>`;
+  document.getElementById("rp").classList.add("open");
+}
+
+function updatePanelToggle(r){
+  const btn=document.getElementById("rp-toggle");
+  const on=activeRoutes.has(r.id);
+  btn.textContent=on?"⊖  Hide Route from Map":"⊕  Show Route on Map";
+  btn.style.cssText=on?"background:#fff5f5;color:#b00;border-color:#f5c0c0":"background:#f0fff4;color:#080;border-color:#b2dfca";
+}
+
+document.getElementById("rp-toggle").onclick=()=>{
+  if(!openPanelRoute) return;
+  const r=openPanelRoute;
+  if(activeRoutes.has(r.id)) activeRoutes.delete(r.id); else activeRoutes.add(r.id);
+  refreshVisibility();updatePanelToggle(r);
+};
+document.getElementById("rp-x").onclick=()=>document.getElementById("rp").classList.remove("open");
+
+function zoomTo(addr){
+  const m=allMarkers.find(x=>x.store.a===addr);
+  if(!m||!m.store.coords) return;
+  window._map.setView([m.store.coords.lat,m.store.coords.lng],16);
+  m.marker.openPopup();
+}
+
+// Search
+const sinput=document.getElementById("search-input");
+const sclear=document.getElementById("search-clear");
+const sresults=document.getElementById("search-results");
+sinput.addEventListener("input",()=>{
+  const val=sinput.value.trim().toLowerCase();
+  searchTerm=val;sclear.style.display=val?"block":"none";
+  if(!val){sresults.style.display="none";refreshVisibility();return;}
+  const hits=allMarkers.filter(({store,route})=>
+    store.n.toLowerCase().includes(val)||route.merch.toLowerCase().includes(val)||(route.code||"").toLowerCase().includes(val)
+  ).slice(0,8);
+  sresults.innerHTML=hits.length?hits.map(({store,route})=>
+    `<div class="sr-item" onclick="pickSearch('${store.a.replace(/'/g,"\\'")}')">
+      <div class="sr-dot" style="background:${route.color}"></div>
+      <div><div class="sr-name">${store.n}</div>
+      <div class="sr-meta">${route.merch} · ${route.code||("R"+route.id)} · ${store.v.toLocaleString()} vol/wk</div></div></div>`
+  ).join(""):`<div style="padding:10px 13px;font-size:12px;color:#999">No results found</div>`;
+  sresults.style.display="block";refreshVisibility();
+});
+sinput.addEventListener("keydown",e=>{if(e.key==="Escape")clearSearch();});
+sclear.onclick=clearSearch;
+function clearSearch(){sinput.value="";searchTerm="";sclear.style.display="none";sresults.style.display="none";refreshVisibility();}
+function pickSearch(addr){sresults.style.display="none";zoomTo(addr);}
+document.addEventListener("click",e=>{if(!document.getElementById("search-wrap").contains(e.target))sresults.style.display="none";});
+
+function setAllRoutes(show){
+  ROUTES.forEach(r=>{if(show)activeRoutes.add(r.id);else activeRoutes.delete(r.id);});
+  refreshVisibility();
+}
+
+async function placeMarkers(routes){
+  const cache=loadCache();
+  // If stores already have baked-in coords (pre-geocoded export), use them directly
+  routes.forEach(r=>r.stores.forEach(s=>{if(s._coords)cache[s.a]=s._coords;}));
+  const allStores=routes.flatMap(r=>r.stores.map(s=>({s,r})));
+  const need=allStores.filter(x=>!cache[x.s.a]).length;
+  const statusEl=document.getElementById("status");
+  let done=allStores.length-need;
+  if(need>0) statusEl.textContent=`⏳ Geocoding ${need} new address${need>1?"es":""}…`;
+
+  for(const {s,r} of allStores){
+    if(!cache[s.a]){
+      await geocode(s.a,cache);done++;
+      statusEl.textContent=`⏳ Geocoding… ${done}/${allStores.length}`;
+      await new Promise(res=>setTimeout(res,1100));
+    }
+    const coords=cache[s.a];
+    if(!coords) continue;
+    s.coords=coords;
+    const ini=r.merch.slice(0,2).toUpperCase();
+    const cc=CHAIN_META[s.chain]||"#666";
+    const marker=L.marker([coords.lat,coords.lng],{icon:mkIcon(r.color,ini)})
+      .bindPopup(`<div style="font-family:system-ui;min-width:185px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:5px">${s.n}</div>
+        <div style="font-size:11.5px;color:#666;margin-bottom:3px">📍 ${s.a}</div>
+        <div style="font-size:11.5px;margin-bottom:8px">👤 <span style="font-weight:600;color:${r.color}">${r.merch}</span>
+          <span style="color:#aaa"> · ${r.code||("R"+r.id)}</span></div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <span style="background:${cc}22;color:${cc};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${s.chain}</span>
+          <span style="background:${r.color}22;color:${r.color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${s.v.toLocaleString()} vol/wk</span>
+          <span style="background:#f0f0f0;color:#555;padding:2px 8px;border-radius:4px;font-size:11px">${s.d}</span>
+        </div></div>`,{maxWidth:240})
+      .addTo(window._map);
+    allMarkers.push({marker,store:s,route:r});
+  }
+  return allStores.length;
+}
+
+/* ── Modal ── */
+function openModal(){
+  // Lazy-load SheetJS only when needed — keeps initial page load fast
+  if(window.XLSX){document.getElementById("modal-overlay").classList.add("open");return;}
+  const btn=document.getElementById("load-btn");
+  btn.textContent="Loading…"; btn.disabled=true;
+  const s=document.createElement("script");
+  s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+  s.onload=function(){btn.textContent="📂 Update from Excel";btn.disabled=false;document.getElementById("modal-overlay").classList.add("open");};
+  s.onerror=function(){btn.textContent="📂 Update from Excel";btn.disabled=false;alert("Could not load Excel reader — check your internet connection.");};
+  document.head.appendChild(s);
+}
+function closeModal(){
+  document.getElementById("modal-overlay").classList.remove("open");
+  resetDZ();pendingRoutes=null;
+  document.getElementById("preview-box").style.display="none";
+  document.getElementById("apply-btn").style.display="none";
+}
+function resetDZ(){
+  const dz=document.getElementById("drop-zone");
+  dz.classList.remove("loaded","drag-over");
+  document.getElementById("dz-icon").textContent="📊";
+  document.getElementById("dz-title").textContent="Drop your Excel file here";
+  document.getElementById("dz-sub").textContent="or click to browse";
+  document.getElementById("file-input").value="";
+}
+const dz=document.getElementById("drop-zone");
+dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("drag-over");});
+dz.addEventListener("dragleave",()=>dz.classList.remove("drag-over"));
+dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("drag-over");const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+document.getElementById("file-input").addEventListener("change",e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+
+function handleFile(file){
+  const ext=file.name.split(".").pop().toLowerCase();
+  if(!["xlsm","xlsx"].includes(ext)){alert("Please use a .xlsx or .xlsm file.");return;}
+  document.getElementById("dz-icon").textContent="⏳";
+  document.getElementById("dz-title").textContent=`Reading ${file.name}…`;
+  document.getElementById("dz-sub").textContent="";
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
+      const parsed=parseWorkbook(wb);
+      if(!parsed.length){alert("No routes found. Check the file format.");resetDZ();return;}
+      pendingRoutes=parsed;
+      showPreview(parsed,file.name);
+      dz.classList.add("loaded");
+      document.getElementById("dz-icon").textContent="✅";
+      document.getElementById("dz-title").textContent=file.name;
+      document.getElementById("dz-sub").textContent=`${parsed.length} routes · ${parsed.flatMap(r=>r.stores).length} stores detected`;
+    }catch(err){alert("Error reading file: "+err.message);resetDZ();}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseWorkbook(wb){
+  // Use first sheet that is NOT a weekend sheet
+  const sheetName=wb.SheetNames.find(n=>!n.toLowerCase().includes("weekend"))||wb.SheetNames[0];
+  const ws=wb.Sheets[sheetName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+
+  // Build color lookup: match by full name first, then by first name
+  const colorMap={};
+  ROUTES.forEach(r=>{
+    colorMap[r.merch.trim().toLowerCase()]=r.color;
+    // also index first name alone as fallback
+    const first=r.merch.trim().toLowerCase().split(" ")[0];
+    if(!colorMap[first]) colorMap[first]=r.color;
+  });
+
+  function pickColor(merch,usedIdx){
+    const key=merch.trim().toLowerCase();
+    if(colorMap[key]) return colorMap[key];
+    const first=key.split(" ")[0];
+    if(colorMap[first]) return colorMap[first];
+    return COLOR_PALETTE[usedIdx%COLOR_PALETTE.length];
+  }
+
+  const routes=[];
+  let stores=[],merch=null,code=null,id=1,palIdx=0;
+  const SKIP=new Set(["route","new","","null"]);
+
+  // Find data start row (skip blanks and header rows)
+  let startRow=0;
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i];
+    const c0=String(r[0]||"").trim().toLowerCase();
+    if(c0==="route"){startRow=i+1;break;}
+  }
+
+  for(let i=startRow;i<rows.length;i++){
+    const row=rows[i];
+    if(!row) continue;
+    const c0=row[0],c1=row[1],c2=row[2],c3=row[3],c4=row[4],c5=row[5],c6=row[6];
+    const s0=String(c0||"").trim();
+
+    // Subtotal row: col0 null/empty, col1 null/empty, col4 has a number
+    if((c0===null||c0===undefined||s0==="")&&(c1===null||c1===undefined)&&c4){
+      if(stores.length>0){
+        const color=pickColor(merch||"",palIdx);
+        if(!colorMap[(merch||"").trim().toLowerCase()]&&!colorMap[(merch||"").trim().toLowerCase().split(" ")[0]]) palIdx++;
+        routes.push({id:id++,code:code||`R${id}`,merch:merch||`Route ${id}`,color,stores});
+        stores=[];merch=null;code=null;
+      }
+      continue;
+    }
+
+    // Skip if empty row or known header values
+    if(!c1&&!c2) continue;
+    const s0low=s0.toLowerCase();
+    if(SKIP.has(s0low)||s0low==="new") continue;
+
+    // Route start row: col0 has route code (non-numeric, like K1, L1)
+    if(s0&&isNaN(Number(s0))){
+      // Save previous route if any (handles files without trailing subtotals)
+      if(stores.length>0){
+        const color=pickColor(merch||"",palIdx);
+        if(!colorMap[(merch||"").trim().toLowerCase()]&&!colorMap[(merch||"").trim().toLowerCase().split(" ")[0]]) palIdx++;
+        routes.push({id:id++,code:code||`R${id}`,merch:merch||`Route ${id}`,color,stores});
+        stores=[];merch=null;code=null;
+      }
+      code=s0;
+      merch=c6?String(c6).trim():null;
+    }
+
+    // Store row (col0 has route code OR is empty, but col1+col2 have data)
+    if(c1&&c2){
+      const name=String(c1).trim();
+      const addr=String(c2).trim();
+      const city=String(c3||"").trim();
+      const vol=parseFloat(c4)||0;
+      const del=String(c5||"").trim();
+      // Update merch if this is the first row of a route and col6 has a value
+      if(c6&&!merch) merch=String(c6).trim();
+      if(name&&addr) stores.push({n:name,a:`${addr}, ${city}, AZ`,v:vol,d:del});
+    }
+  }
+  // Flush last route
+  if(stores.length>0){
+    const color=pickColor(merch||"",palIdx);
+    routes.push({id:id,code:code||`R${id}`,merch:merch||`Route ${id}`,color,stores});
+  }
+  return routes;
+}
+
+function showPreview(routes,filename){
+  const existingMerchs=new Set(ROUTES.map(r=>r.merch.trim().toLowerCase()));
+  const existingFirst=new Set(ROUTES.map(r=>r.merch.trim().toLowerCase().split(" ")[0]));
+  document.getElementById("preview-head").textContent=
+    `Preview: ${routes.length} routes · ${routes.flatMap(r=>r.stores).length} stores · replaces all current data`;
+  document.getElementById("preview-list").innerHTML=routes.map(r=>{
+    const key=r.merch.trim().toLowerCase();
+    const isNew=!existingMerchs.has(key)&&!existingFirst.has(key.split(" ")[0]);
+    const tv=r.stores.reduce((s,x)=>s+x.v,0);
+    return `<div class="pv-row">
+      <div class="pv-dot" style="background:${r.color}"></div>
+      <div class="pv-code">${r.code}</div>
+      <div class="pv-merch">${r.merch}</div>
+      <div class="pv-detail">${r.stores.length} stores · ${tv.toLocaleString()} vol</div>
+      ${isNew?'<div class="pv-new">NEW</div>':''}
+    </div>`;
+  }).join("");
+  document.getElementById("preview-box").style.display="block";
+  const ab=document.getElementById("apply-btn");
+  ab.style.display="block";
+  ab.textContent=`✓ Replace with ${routes.length} Routes`;
+}
+
+async function applyNewData(){
+  if(!pendingRoutes) return;
+  const ab=document.getElementById("apply-btn");
+  ab.disabled=true;ab.textContent="Applying…";
+  closeModal();
+
+  // Remove ALL existing markers — full replacement
+  allMarkers.forEach(({marker})=>window._map.removeLayer(marker));
+  allMarkers=[];
+
+  // Full replace — not additive
+  ROUTES=pendingRoutes;
+  enrichRoutes(ROUTES);
+  activeChains=new Set(Object.keys(CHAIN_META));
+  activeRoutes=new Set(ROUTES.map(r=>r.id));
+  searchTerm="";
+  document.getElementById("rp").classList.remove("open");
+  sinput.value="";sclear.style.display="none";sresults.style.display="none";
+
+  buildChainFilters();
+  buildRouteLegend();
+
+  const total=await placeMarkers(ROUTES);
+  const tv=ROUTES.flatMap(r=>r.stores).reduce((s,x)=>s+x.v,0);
+  document.getElementById("hdr-stats").textContent=`${total} stores · ${tv.toLocaleString()} vol/wk`;
+  document.getElementById("status").textContent=`✅ Loaded ${total} stores from file · ${ROUTES.length} routes · dot = toggle · name = details`;
+  refreshVisibility();
+  pendingRoutes=null;
+}
+
+
+function setAllChains(show){
+  const chains=[...new Set(ROUTES.flatMap(r=>r.stores.map(s=>s.chain)))];
+  chains.forEach(ch=>{
+    const btn=document.getElementById("cbtn_"+ch.replace(/\W/g,"_"));
+    if(show){activeChains.add(ch);if(btn){btn.classList.remove("off");btn.style.background=CHAIN_META[ch]||"#666";}}
+    else{activeChains.delete(ch);if(btn)btn.classList.add("off");}
+  });
+  refreshVisibility();
+}
+
+function openChainPanel(chain){
+  clearSavedRoute();
+  currentChain=chain;
+  activeOTSCat=null;
+  const oldStrip=document.querySelector('.ots-cat-strip');
+  if(oldStrip) oldStrip.remove();
+
+  const col=CHAIN_META[chain]||"#666";
+  _chainItems=allMarkers.filter(x=>x.store.chain===chain).sort((a,b)=>b.store.v-a.store.v);
+  document.getElementById("rp-toggle").style.display="none";
+  document.getElementById("rp-swatch").style.background=col;
+  document.getElementById("rp-merch").textContent=chain;
+  const tv=_chainItems.reduce((s,x)=>s+x.store.v,0);
+  const active=activeChains.has(chain);
+  const selTotal=selectedStores.size;
+  const chainSelCount=_chainItems.filter(x=>selectedStores.has(x.store.a)).length;
+  const otherSel=selTotal-chainSelCount;
+  const crossNote=otherSel>0?` · +${otherSel} from other chains`:"";
+  document.getElementById("rp-sub").textContent=
+    `${_chainItems.length} stores · ${tv.toLocaleString()} vol/wk${active?"":" · hidden"}${crossNote}`;
+
+  if(chain==="OTS"){
+    // Build sub-category strip
+    const catCounts={};
+    _chainItems.forEach(x=>{catCounts[x.store.otsCategory]=(catCounts[x.store.otsCategory]||0)+1;});
+    const strip=document.createElement('div');
+    strip.className='ots-cat-strip';
+    OTS_CATS.forEach(c=>{
+      if(!catCounts[c.key]) return;
+      const btn=document.createElement('button');
+      btn.className='ots-cat-btn'; btn.dataset.cat=c.key;
+      btn.style.background=c.color+'22'; btn.style.color=c.color; btn.style.borderColor=c.color+'55';
+      btn.textContent=c.label+' ('+catCounts[c.key]+')';
+      btn.onclick=()=>setOTSCat(c.key);
+      strip.appendChild(btn);
+    });
+    document.getElementById('rp-stores').before(strip);
+    renderOTSPanel();
+    // For OTS, foot is handled by renderOTSPanel — just open the panel
+    document.getElementById("rp").classList.add("open");
+    return;
+  }
+
+  // Non-OTS chains
+  document.getElementById("rp-stores").innerHTML=_chainItems.map(({store,route},idx)=>{
+    const sa=store.a.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    const isSel=selectedStores.has(store.a);
+    return `<div class="chain-store-row${isSel?" sel":""}" data-idx="${idx}">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <input type="checkbox" class="rps-check" data-idx="${idx}"${isSel?" checked":""}/>
+        <div style="flex:1;min-width:0">
+          <div class="rps-name">${store.n}</div>
+          <div class="rps-badges">
+            <span class="badge" style="background:${route.color}22;color:${route.color}">${route.merch} · ${route.code||"R"+route.id}</span>
+            <span class="badge" style="background:#f0f0f0;color:#555">${store.v.toLocaleString()} vol</span>
+            <span class="badge" style="background:#f0f0f0;color:#555">${store.d}</span>
+          </div>
+        </div>
+        <button style="background:none;border:none;color:#ccc;cursor:pointer;font-size:13px;padding:0;flex-shrink:0;line-height:1;margin-top:1px"
+                onclick="event.stopPropagation();zoomTo('${sa}')">&#x1F4CD;</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  document.querySelectorAll(".chain-store-row").forEach(row=>{
+    const idx=parseInt(row.dataset.idx);
+    row.addEventListener("click",(e)=>{if(e.target.tagName==="BUTTON"||e.target.tagName==="INPUT")return;toggleStoreSelect(idx);});
+    const chk=row.querySelector(".rps-check");
+    chk.addEventListener("change",()=>toggleStoreSelect(idx));
+    chk.addEventListener("click",(e)=>e.stopPropagation());
+  });
+
+  if(selectedStores.size===0){ startPoint=null; endPoint=null; sameAsStart=false; }
+
+  document.getElementById("rp-foot").innerHTML=buildSelectorFooter();
+  updateSelUI();
+  document.getElementById("rp").classList.add("open");
+}
+
+
+
+
+let startPoint=null;
+let endPoint=null;
+let sameAsStart=false;
+let selectedStores=new Set();
+let savedRouteResult=null;
+let routeOverlay=null;
+let currentChain=null;
+let _chainItems=[];
+
+function toggleStoreSelect(idx){
+  const item=_chainItems[idx]; if(!item) return;
+  const addr=item.store.a;
+  const row=document.querySelector('.chain-store-row[data-idx="'+idx+'"]');
+  const chk=document.querySelector('.rps-check[data-idx="'+idx+'"]');
+  if(selectedStores.has(addr)){selectedStores.delete(addr);if(row)row.classList.remove('sel');if(chk)chk.checked=false;}
+  else{selectedStores.add(addr);if(row)row.classList.add('sel');if(chk)chk.checked=true;}
+  updateSelUI();
+}
+
+function updateSelUI(){
+  const n=selectedStores.size;
+  const hint=document.getElementById("sel-hint");
+  const action=document.getElementById("sel-action");
+  const lbl=document.getElementById("sel-count-lbl");
+  if(!hint) return;
+  if(n===0){
+    hint.style.display="block";
+    action.style.display="none";
+  } else {
+    hint.style.display="none";
+    // Build breakdown by chain
+    const chainCounts={};
+    allMarkers.forEach(({store})=>{
+      if(selectedStores.has(store.a)){
+        chainCounts[store.chain]=(chainCounts[store.chain]||0)+1;
+      }
+    });
+    const breakdown=Object.entries(chainCounts).map(([ch,cnt])=>cnt+" "+ch).join(", ");
+    lbl.textContent=n+" store"+(n>1?"s":"")+" selected"+( Object.keys(chainCounts).length>1?" ("+breakdown+")":"");
+    action.style.display="block";
+  }
+  // Update chain button badges
+  const chains=[...new Set(ROUTES.flatMap(r=>r.stores.map(s=>s.chain)))];
+  chains.forEach(ch=>{
+    const btn=document.getElementById("cbtn_"+ch.replace(/\W/g,"_"));
+    if(!btn) return;
+    const hasAny=allMarkers.some(({store})=>store.chain===ch&&selectedStores.has(store.a));
+    if(hasAny) btn.classList.add("has-sel"); else btn.classList.remove("has-sel");
+  });
+  // Update subtitle if panel is open on a chain
+  if(currentChain){
+    const selTotal=selectedStores.size;
+    const chainSelCount=_chainItems.filter(x=>selectedStores.has(x.store.a)).length;
+    const otherSel=selTotal-chainSelCount;
+    const subEl=document.getElementById("rp-sub");
+    if(subEl){
+      const tv=_chainItems.reduce((s,x)=>s+x.store.v,0);
+      const active=activeChains.has(currentChain);
+      const crossNote=otherSel>0?` · +${otherSel} from other chains`:"";
+      subEl.textContent=`${_chainItems.length} stores · ${tv.toLocaleString()} vol/wk${active?"":" · hidden"}${crossNote}`;
+    }
+  }
+}
+
+
+function clearChainSel(){
+  selectedStores.clear();
+  startPoint=null; endPoint=null; sameAsStart=false;
+  document.querySelectorAll(".chain-store-row.sel").forEach(r=>r.classList.remove("sel"));
+  document.querySelectorAll(".rps-check").forEach(c=>{c.checked=false;});
+  // Remove has-sel badge from all chain buttons
+  document.querySelectorAll(".cbtn.has-sel").forEach(b=>b.classList.remove("has-sel"));
+  updateSelUI();
+}
+
+
+function mkNumIcon(num,color){
+  return L.divIcon({
+    html:'<div style="width:28px;height:28px;background:'+color+';border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;font-family:system-ui">'+num+'</div>',
+    iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16],className:""
+  });
+}
+
+function clearRouteOverlay(){
+  if(!routeOverlay) return;
+  routeOverlay.polyline.remove();
+  routeOverlay.markers.forEach(function(m){m.remove();});
+  routeOverlay=null;
+}
+
+
+function toggleSameStart(){
+  sameAsStart=document.getElementById('same-start-chk').checked;
+  const ew=document.getElementById('end-wrap');
+  if(ew) ew.style.display=sameAsStart?'none':'block';
+  if(sameAsStart){endPoint=null;const ei=document.getElementById('end-input');if(ei){ei.value='';ei.classList.remove('set','err');}}
+}
+
+async function geocodeInput(type){
+  const input=document.getElementById(type+'-input');
+  if(!input) return;
+  const val=input.value.trim();
+  if(!val){if(type==='start')startPoint=null;else endPoint=null;input.classList.remove('set','err');return;}
+  input.style.opacity='0.5';
+  try{
+    const cache=loadCache();
+    const key='pt_'+val.toLowerCase().replace(/\s+/g,'_');
+    let coords=cache[key];
+    if(!coords){
+      const r=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(val+', AZ')+'&format=json&limit=1&countrycodes=us',{headers:{"Accept-Language":"en"}});
+      const d=await r.json();
+      if(d&&d.length){coords={lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};cache[key]=coords;saveCache(cache);}
+    }
+    if(coords){
+      const pt={label:val,lat:coords.lat,lng:coords.lng};
+      if(type==='start')startPoint=pt;else endPoint=pt;
+      input.classList.add('set');input.classList.remove('err');
+    }else{
+      if(type==='start')startPoint=null;else endPoint=null;
+      input.classList.add('err');input.classList.remove('set');
+    }
+  }catch(e){input.classList.add('err');}
+  input.style.opacity='1';
+}
+
+function useMyLocation(type){
+  if(!navigator.geolocation){alert("Geolocation not supported in this browser.");return;}
+  const input=document.getElementById(type+'-input');
+  if(input){input.value='Locating...';input.style.opacity='0.5';}
+  navigator.geolocation.getCurrentPosition(function(pos){
+    const pt={label:'My Location',lat:pos.coords.latitude,lng:pos.coords.longitude};
+    if(type==='start')startPoint=pt;else endPoint=pt;
+    if(input){input.value='My Location';input.classList.add('set');input.classList.remove('err');input.style.opacity='1';}
+  },function(err){
+    if(input){input.value='';input.style.opacity='1';}
+    alert("Could not get location: "+err.message);
+  });
+}
+
+function mkEndpointIcon(label,color){
+  return L.divIcon({
+    html:'<div style="width:28px;height:28px;background:'+color+';border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;font-family:system-ui">'+label+'</div>',
+    iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-16],className:""
+  });
+}
+
+async function generateRoute(){
+  const items=[...selectedStores]
+    .map(addr=>allMarkers.find(m=>m.store.a===addr))
+    .filter(x=>x&&x.store&&x.store.coords);
+
+  if(items.length<1){alert("Select at least 1 geocoded store.");return;}
+  if(items.length<2&&!startPoint){alert("Select at least 2 stores.");return;}
+
+  const btn=document.getElementById("gen-route-btn");
+  btn.disabled=true; btn.textContent="Optimizing…";
+
+  try{
+    const effectiveEnd=sameAsStart?startPoint:endPoint;
+    const useRoundtrip=!!(sameAsStart&&startPoint);
+
+    const allWps=[];
+    if(startPoint) allWps.push({type:"start",lat:startPoint.lat,lng:startPoint.lng,label:startPoint.label});
+    items.forEach(x=>allWps.push({type:"store",lat:x.store.coords.lat,lng:x.store.coords.lng,item:x}));
+    if(!useRoundtrip&&effectiveEnd)
+      allWps.push({type:"end",lat:effectiveEnd.lat,lng:effectiveEnd.lng,label:effectiveEnd.label});
+
+    const coordStr=allWps.map(w=>w.lng+","+w.lat).join(";");
+    const rtParam=useRoundtrip?"true":"false";
+    const srcParam=startPoint?"first":"any";
+    const dstParam=(effectiveEnd&&!useRoundtrip)?"last":"any";
+    const url="https://router.project-osrm.org/trip/v1/driving/"+coordStr
+      +"?roundtrip="+rtParam+"&source="+srcParam+"&destination="+dstParam
+      +"&overview=full&geometries=geojson";
+
+    const res=await fetch(url);
+    const data=await res.json();
+    if(data.code!=="Ok") throw new Error(data.message||"Routing failed");
+
+    const raw=new Array(allWps.length);
+    data.waypoints.forEach((wp,i)=>{raw[wp.waypoint_index]=allWps[i];});
+    const clean=raw.filter(Boolean);
+    if(useRoundtrip) clean.push({type:"end",lat:startPoint.lat,lng:startPoint.lng,label:startPoint.label+" (return)"});
+
+    clearRouteOverlay();
+    const poly=L.geoJSON(data.trips[0].geometry,{style:{color:"#003087",weight:4,opacity:.78,dashArray:"10 5"}}).addTo(window._map);
+
+    let sc=0;
+    const mks=clean.map(w=>{
+      let icon;
+      if(w.type==="start") icon=mkEndpointIcon("S","#28a745");
+      else if(w.type==="end") icon=mkEndpointIcon("E","#dc3545");
+      else{sc++;icon=mkNumIcon(sc,"#003087");}
+      return L.marker([w.lat,w.lng],{icon:icon,zIndexOffset:1000}).addTo(window._map);
+    });
+
+    routeOverlay={polyline:poly,markers:mks};
+    window._map.fitBounds(clean.map(w=>[w.lat,w.lng]),{padding:[50,50]});
+    showRouteResult(clean,data.trips[0]);
+  }catch(e){
+    btn.disabled=false; btn.textContent="🗺 Optimize Route";
+    alert("Route optimization failed: "+e.message+"\nMake sure all stores are geocoded.");
+  }
+}
+
+
+function showRouteResult(ordered,trip){
+  savedRouteResult={ordered,trip};
+  document.getElementById('route-float').style.display='flex';
+  const totalMi=(trip.distance/1609.34).toFixed(1);
+  const totalMin=Math.round(trip.duration/60);
+  const hrs=Math.floor(totalMin/60), mins=totalMin%60;
+  const timeStr=hrs>0?(hrs+"h "+mins+"m"):(mins+" min");
+  const storeCount=ordered.filter(w=>w.type==="store").length;
+
+  document.getElementById("rp-toggle").style.display="none";
+  document.getElementById("rp-swatch").style.background="#003087";
+  document.getElementById("rp-merch").textContent="Optimized Route";
+  document.getElementById("rp-sub").textContent=`${storeCount} stops · ${totalMi} mi · ~${timeStr} drive`;
+
+  let storeNum=0;
+  document.getElementById("rp-stores").innerHTML=ordered.map((w,i)=>{
+    const leg=trip.legs[i];
+    const legMi=leg?(leg.distance/1609.34).toFixed(1):null;
+    const legMin=leg?Math.round(leg.duration/60):null;
+    const isLast=(i===ordered.length-1);
+    const legStr=(!isLast&&leg)?`<div class="stop-leg">↓ ${legMi} mi · ~${legMin} min to next</div>`:"";
+
+    if(w.type==="start"||w.type==="end"){
+      const isStart=(w.type==="start");
+      const bg=isStart?"#28a745":"#dc3545";
+      return `<div class="stop-row" onclick="window._map.setView([${w.lat},${w.lng}],15)">
+        <div class="stop-num" style="background:${bg};font-size:8px">${isStart?"START":"END"}</div>
+        <div style="flex:1;min-width:0"><div class="rps-name" style="color:${bg}">${w.label}</div>${legStr}</div>
+      </div>`;
+    }
+    storeNum++;
+    const store=w.item.store, route=w.item.route;
+    const sa=store.a.replace(/'/g,"\\'");
+    return `<div class="stop-row" onclick="zoomTo('${sa}')">
+      <div class="stop-num" style="background:#003087">${storeNum}</div>
+      <div style="flex:1;min-width:0">
+        <div class="rps-name">${store.n}</div>
+        <div class="rps-badges" style="margin-top:3px">
+          <span class="badge" style="background:${route.color}22;color:${route.color}">${route.merch} · ${route.code||"R"+route.id}</span>
+          <span class="badge" style="background:#f0f0f0;color:#555">${store.v.toLocaleString()} vol</span>
+          <span class="badge" style="background:#f0f0f0;color:#555">${store.d}</span>
+        </div>
+        ${legStr}
+      </div></div>`;
+  }).join("");
+
+  const gmAll=ordered.filter(w=>!(w.type==="end"&&sameAsStart));
+  const gmCoords=gmAll.map(w=>
+    w.type==="store"?(w.item.store.coords.lat+","+w.item.store.coords.lng):(w.lat+","+w.lng)
+  ).join("/");
+  const gmUrl="https://www.google.com/maps/dir/"+gmCoords;
+  const gmWarn=gmAll.length>10
+    ?`<div style="font-size:10.5px;color:#b7800a;background:#fffbe6;border-radius:4px;padding:4px 8px;margin-bottom:7px">⚠ Google Maps supports max 10 stops. Only first 10 will load.</div>`
+    :"";
+
+  document.getElementById("rp-foot").innerHTML=
+    `<div style="font-size:12px;color:#555;margin-bottom:7px"><strong>Total:</strong> ${totalMi} mi &nbsp;·&nbsp; ~${timeStr} estimated drive</div>`
+    +gmWarn
+    +`<div style="display:flex;gap:6px">
+      <a href="${gmUrl}" target="_blank" style="flex:1;padding:8px;border-radius:7px;background:#34a853;color:#fff;font-size:12px;font-weight:600;text-decoration:none;text-align:center;display:block">🗺 Open in Google Maps</a>
+      <button onclick="clearRouteAndReturn()" style="padding:8px 11px;border-radius:7px;border:1px solid #ddd;background:#f5f5f5;color:#555;font-size:12px;cursor:pointer">✕ Clear</button>
+    </div>`;
+}
+
+
+
+function viewSavedRoute(){
+  if(!savedRouteResult) return;
+  showRouteResult(savedRouteResult.ordered, savedRouteResult.trip);
+  document.getElementById('rp').classList.add('open');
+}
+
+function clearSavedRoute(){
+  // Only clears route visual — preserves store selections for multi-chain picks
+  clearRouteOverlay();
+  savedRouteResult=null;
+  startPoint=null; endPoint=null; sameAsStart=false;
+  document.getElementById('route-float').style.display='none';
+}
+
+function clearRouteAndReturn(){
+  clearSavedRoute();
+  clearChainSel(); // explicitly clear selections when user taps Clear in result panel
+  if(currentChain) openChainPanel(currentChain);
+  else if(currentChannelId) openChannelPanel(currentChannelId);
+  else if(currentDayPanel) openDayPanel(currentDayPanel);
+  else document.getElementById('rp').classList.remove('open');
+}
+
+
+
+
+function exportPreGeocoded(){
+  const btn=document.getElementById('export-btn');
+  const cache=loadCache();
+  const allStores=ROUTES.flatMap(r=>r.stores);
+  const missing=allStores.filter(s=>!cache[s.a]);
+  if(missing.length>0){
+    const geocoded=allStores.length-missing.length;
+    const ok=confirm(
+      "⚠️ "+missing.length+" store"+(missing.length>1?"s":"")+" couldn't be geocoded "+
+      "and won't appear in the shared version — same as the live map.\n\n"+
+      "Export with "+geocoded+" geocoded store"+(geocoded!==1?"s":"")+"?"
+    );
+    if(!ok){return;}
+  }
+  btn.textContent="Building…"; btn.disabled=true;
+
+  // Build ROUTES block with baked-in coords
+  const START='//__ROUTES_DATA_START__\n';
+  const END='\n//__ROUTES_DATA_END__';
+  let routesSrc="let ROUTES = [\n";
+  ROUTES.forEach(function(r){
+    routesSrc+="  { id:"+r.id+", code:\""+r.code+"\", merch:\""+r.merch.replace(/\\/g,"\\\\").replace(/"/g,'\\"')+"\", color:\""+r.color+"\", stores:[\n";
+    r.stores.forEach(function(s){
+      const c=cache[s.a];
+      const coordStr=c?", _coords:{lat:"+c.lat+",lng:"+c.lng+"}":"";
+      routesSrc+="    { n:\""+s.n.replace(/\\/g,"\\\\").replace(/"/g,'\\"')+"\", a:\""+s.a.replace(/\\/g,"\\\\").replace(/"/g,'\\"')+"\", v:"+s.v+", d:\""+s.d+"\""+coordStr+" },\n";
+    });
+    routesSrc+="  ]},\n";
+  });
+  routesSrc+="];";
+
+  // Get source via fetch (avoids outerHTML HTML-entity escaping of & in store names)
+  const currentUrl=window.location.href;
+  fetch(currentUrl)
+    .then(function(r){return r.ok?r.text():Promise.reject("fetch failed");})
+    .then(function(src){
+      const si=src.indexOf(START);
+      const ei=src.indexOf(END);
+      if(si<0||ei<0){
+        alert("Could not locate ROUTES markers in source.\nMake sure you are opening this file from a local server or GitHub Pages, not directly from the filesystem.\n\nAlternative: use Chrome → More Tools → Save Page As.");
+        btn.textContent="⚡ Export Shared Version"; btn.disabled=false;
+        return;
+      }
+      let out=src.slice(0,si+START.length)+routesSrc+src.slice(ei);
+      // Remove export button from shared version
+      out=out.replace(/<button id="export-btn"[\s\S]*?<\/button>/,"");
+      const blob=new Blob([out],{type:"text/html"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url; a.download="pepsico_sf_map_shared.html";
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+      btn.textContent="⚡ Export Shared Version"; btn.disabled=false;
+    })
+    .catch(function(err){
+      // fetch fails when opened as file:// — fall back to outerHTML with & fix
+      let src=document.documentElement.outerHTML
+        .replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">");
+      const si=src.indexOf(START);
+      const ei=src.indexOf(END);
+      if(si<0||ei<0){
+        alert("Export failed: could not locate ROUTES markers.\nError: "+err);
+        btn.textContent="⚡ Export Shared Version"; btn.disabled=false;
+        return;
+      }
+      let out=src.slice(0,si+START.length)+routesSrc+src.slice(ei);
+      out=out.replace(/<button id="export-btn"[\s\S]*?<\/button>/,"");
+      const blob=new Blob([out],{type:"text/html"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url; a.download="pepsico_sf_map_shared.html";
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+      btn.textContent="⚡ Export Shared Version"; btn.disabled=false;
+    });
+}
+
+
+const CHANNEL_MAP = {
+  gas:    ["Circle K","QuikTrip","7-Eleven","Chevron","Shell","ampm"],
+  dollar: ["Dollar Tree","Dollar General","Family Dollar"],
+  drug:   ["Walgreens","CVS"],
+  ots:    ["OTS"]
+};
+const channelState={gas:true,dollar:true,drug:true,ots:true};
+
+function toggleChannel(ch){
+  channelState[ch]=!channelState[ch];
+  const show=channelState[ch];
+  const btn=document.getElementById("chg-"+ch);
+  if(btn) btn.classList.toggle("off",!show);
+  const chains=CHANNEL_MAP[ch]||[];
+  chains.forEach(function(chain){
+    const cbtn=document.getElementById("cbtn_"+chain.replace(/\W/g,"_"));
+    if(show){
+      activeChains.add(chain);
+      if(cbtn){cbtn.classList.remove("off");cbtn.style.background=CHAIN_META[chain]||"#666";}
+    } else {
+      activeChains.delete(chain);
+      if(cbtn) cbtn.classList.add("off");
+    }
+  });
+  refreshVisibility();
+  openChannelPanel(ch);
+}
+
+// ── OTS Category detection ─────────────────────────────────────
+function getOTSCategory(name){
+  const n=name.toUpperCase();
+  // Healthcare first (most specific)
+  if(n.includes('BANNER')||n.includes('BHC')||n.includes('HONOR HEALTH')||(n.includes('EUREST')&&n.includes('CARIS'))) return 'Healthcare';
+  // Campus (ARA@ASU + Intel, but NOT marathon)
+  if((n.includes('ARA')&&n.includes('ASU'))||(n.includes('EUREST')&&n.includes('INTEL'))) return 'Campus';
+  // Liquor (include typo LIQOUR from data)
+  if(n.includes('LIQUOR')||n.includes('LIQOUR')||n.includes('TOTAL WINE')||n.includes('BEER AND')||n.includes('BAD HABITS')||n.includes('SMOKE E')||n.includes('SULTAN SMOKE')||n.includes('SPEEDY STOP')) return 'Liquor';
+  // Grocery
+  if(n.includes('MARKET')||n.includes(' MKT')||n.includes('CARNICER')||
+     n.includes('TWO BROTHERS')||n.includes('LOS AMIGOS MARK')||n.includes('GREENFIELD FOOD')||
+     n.includes('FIFTH STREET')||n.includes('NEW BROADWAY')||n.includes('DENMART')||
+     n.includes('3 PALMS')||n.includes('4 SONS')||n.includes('99 RANCH')||n.includes('AJ FINE')||
+     n.includes('JZ FOODS')||n.includes('SHOP N1')||n.includes('LA MILK')||
+     n.includes('MANGO MINI')||n.includes('MARATHON FOOD')||n.includes('MILK & HONEY')||
+     n.includes('MISSION MARKET')||n.includes('PAISANO')||n.includes('ROLLINS')) return 'Grocery';
+  // Fuel/C-Store Independent
+  if(n.includes('GAS')||n.includes('FUEL')||n.includes('OIL')||n.includes('ARCO')||n.includes('CHEVR')||
+     n.includes('KWIK')||n.includes('QUIK')||n.includes('CARIOCA')||n.includes('SPEEDSMART')||
+     n.includes('QUICK')||n.includes('CST USA')||n.includes('GPM')||n.includes('CORNER STOP')||
+     n.includes('JACKSON')||n.includes('STAR MART')||n.includes('LOVES TRAVEL')||
+     n.includes('MINI MART')||n.includes('ARIZONA C STORE')||n.includes('GO SNAP')||
+     n.includes('GRAB & GO')||n.includes('FULL CIRCLE')||n.includes('T&B HOLDINGS')||
+     n.includes('27 PHOENIX')||n.includes('PRIDE GAS')) return 'Fuel Indie';
+  return 'Other';
+}
+
+const OTS_CATS=[
+  {key:'Grocery',    label:'\uD83D\uDED2 Grocery',    color:'#28A745'},
+  {key:'Fuel Indie', label:'\u26FD Fuel Indie', color:'#E07000'},
+  {key:'Liquor',     label:'\uD83C\uDF77 Liquor',     color:'#8B0000'},
+  {key:'Healthcare', label:'\uD83C\uDFE5 Healthcare', color:'#0099CC'},
+  {key:'Campus',     label:'\uD83C\uDF93 Campus',     color:'#6600AA'},
+  {key:'Other',      label:'\uD83C\uDFEA Other',      color:'#777777'},
+];
+
+let activeOTSCat=null;
+
+function setOTSCat(cat){
+  activeOTSCat=(activeOTSCat===cat)?null:cat;
+  document.querySelectorAll('.ots-cat-btn').forEach(function(b){
+    b.classList.toggle('ots-active', b.dataset.cat===activeOTSCat);
+  });
+  renderOTSPanel();
+  refreshVisibility();
+}
+
+function renderOTSPanel(){
+  if(!_chainItems||!_chainItems.length) return;
+  const filtered=activeOTSCat
+    ? _chainItems.filter(function(x){return x.store.otsCategory===activeOTSCat;})
+    : _chainItems;
+  document.getElementById('rp-stores').innerHTML=filtered.map(function(x,idx){
+    const store=x.store, route=x.route;
+    const isSel=selectedStores.has(store.a);
+    const catMeta=OTS_CATS.find(function(c){return c.key===store.otsCategory;})||{color:'#777'};
+    const sa=store.a.replace(/'/g,"\\'");
+    return '<div class="chain-store-row'+(isSel?' sel':'')+'" data-addr="'+store.a.replace(/"/g,'&quot;')+'">'+
+      '<div style="display:flex;align-items:flex-start;gap:8px">'+
+        '<input type="checkbox" class="rps-check"'+(isSel?' checked':'')+' data-addr="'+store.a.replace(/"/g,'&quot;')+'"/>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div class="rps-name">'+store.n+'</div>'+
+          '<div class="rps-badges">'+
+            '<span class="badge" style="background:'+catMeta.color+'22;color:'+catMeta.color+'">'+store.otsCategory+'</span>'+
+            '<span class="badge" style="background:'+route.color+'22;color:'+route.color+'">'+route.merch+' \xb7 '+(route.code||'R'+route.id)+'</span>'+
+            '<span class="badge" style="background:#f0f0f0;color:#555">'+store.v.toLocaleString()+' vol</span>'+
+            '<span class="badge" style="background:#f0f0f0;color:#555">'+store.d+'</span>'+
+          '</div>'+
+        '</div>'+
+        '<button style="background:none;border:none;color:#ccc;cursor:pointer;font-size:13px;padding:0;flex-shrink:0" onclick="event.stopPropagation();zoomTo(\''+sa+'\')">&#x1F4CD;</button>'+
+      '</div></div>';
+  }).join('');
+
+  // Re-attach click handlers using addr instead of idx
+  document.querySelectorAll('.chain-store-row').forEach(function(row){
+    const addr=row.dataset.addr;
+    row.addEventListener('click',function(e){
+      if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return;
+      toggleStoreByAddr(addr);
+    });
+    const chk=row.querySelector('.rps-check');
+    if(chk){
+      chk.addEventListener('change',function(){toggleStoreByAddr(addr);});
+      chk.addEventListener('click',function(e){e.stopPropagation();});
+    }
+  });
+
+  const tv=filtered.reduce(function(s,x){return s+x.store.v;},0);
+  document.getElementById('rp-foot').innerHTML=
+    '<strong>Showing:</strong> '+filtered.length+' stores \xb7 '+tv.toLocaleString()+' vol/wk'+(activeOTSCat?' ('+activeOTSCat+' only)':'');
+}
+
+function toggleStoreByAddr(addr){
+  const item=allMarkers.find(function(m){return m.store.a===addr;});
+  if(!item) return;
+  const row=document.querySelector('.chain-store-row[data-addr="'+addr.replace(/"/g,'&quot;')+'"]');
+  const chk=row?row.querySelector('.rps-check'):null;
+  if(selectedStores.has(addr)){
+    selectedStores.delete(addr);
+    if(row) row.classList.remove('sel');
+    if(chk) chk.checked=false;
+  } else {
+    selectedStores.add(addr);
+    if(row) row.classList.add('sel');
+    if(chk) chk.checked=true;
+  }
+  updateSelUI();
+}
+
+// ── Delivery day filter ────────────────────────────────────────
+let activeDays=new Set();
+
+function toggleDay(day){
+  const btn=document.getElementById('daybtn_'+day);
+  if(activeDays.has(day)){
+    activeDays.delete(day);
+    if(btn) btn.classList.remove('day-active');
+    if(currentDayPanel===day){
+      currentDayPanel=null;
+      document.getElementById('rp').classList.remove('open');
+    }
+  } else {
+    activeDays.add(day);
+    if(btn) btn.classList.add('day-active');
+    openDayPanel(day);
+  }
+  refreshVisibility();
+}
+
+function clearDays(){
+  activeDays.clear();
+  document.querySelectorAll('.day-btn').forEach(function(b){b.classList.remove('day-active');});
+  refreshVisibility();
+}
+
+
+// ── QOL Change 1: Channel panel ───────────────────────────────
+// Called by toggleChannel AND standalone when clicking channel button
+
+let currentChannelId=null;
+
+const CHANNEL_META={
+  gas:    {label:'\u26FD Gas & C-Store', color:'#B5451B'},
+  dollar: {label:'\uD83D\uDCB2 Dollar Channel', color:'#28822A'},
+  drug:   {label:'\uD83D\uDC8A Drug Channel', color:'#B01C1C'},
+  ots:    {label:'\uD83C\uDFEA OTS', color:'#7B61FF'},
+};
+
+function openChannelPanel(ch){
+  clearSavedRoute();
+  currentChannelId=ch; currentChain=null; activeOTSCat=null;
+  const oldStrip=document.querySelector('.ots-cat-strip');
+  if(oldStrip) oldStrip.remove();
+
+  const chains=CHANNEL_MAP[ch]||[];
+  const meta=CHANNEL_META[ch]||{label:ch,color:'#666'};
+
+  _chainItems=allMarkers
+    .filter(x=>chains.includes(x.store.chain))
+    .sort((a,b)=>b.store.v-a.store.v);
+
+  document.getElementById("rp-toggle").style.display="none";
+  document.getElementById("rp-swatch").style.background=meta.color;
+  document.getElementById("rp-merch").textContent=meta.label;
+
+  const tv=_chainItems.reduce((s,x)=>s+x.store.v,0);
+  const anyActive=chains.some(c=>activeChains.has(c));
+  const selTotal=selectedStores.size;
+  const chSelCount=_chainItems.filter(x=>selectedStores.has(x.store.a)).length;
+  const otherSel=selTotal-chSelCount;
+  const crossNote=otherSel>0?` \xb7 +${otherSel} from other channels`:"";
+  document.getElementById("rp-sub").textContent=
+    `${_chainItems.length} stores \xb7 ${tv.toLocaleString()} vol/wk${anyActive?"":" \xb7 hidden"}${crossNote}`;
+
+  // For OTS channel, show sub-category strip
+  if(ch==="ots"){
+    const catCounts={};
+    _chainItems.forEach(x=>{catCounts[x.store.otsCategory]=(catCounts[x.store.otsCategory]||0)+1;});
+    const strip=document.createElement('div');
+    strip.className='ots-cat-strip';
+    OTS_CATS.forEach(c=>{
+      if(!catCounts[c.key]) return;
+      const btn=document.createElement('button');
+      btn.className='ots-cat-btn'; btn.dataset.cat=c.key;
+      btn.style.background=c.color+'22'; btn.style.color=c.color; btn.style.borderColor=c.color+'55';
+      btn.textContent=c.label+' ('+catCounts[c.key]+')';
+      btn.onclick=()=>setOTSCat(c.key);
+      strip.appendChild(btn);
+    });
+    document.getElementById('rp-stores').before(strip);
+  }
+
+  document.getElementById("rp-stores").innerHTML=_chainItems.map(({store,route},idx)=>{
+    const cc=CHAIN_META[store.chain]||"#666";
+    const isSel=selectedStores.has(store.a);
+    const sa=store.a.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    return `<div class="chain-store-row${isSel?" sel":""}" data-idx="${idx}">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <input type="checkbox" class="rps-check" data-idx="${idx}"${isSel?" checked":""}/>
+        <div style="flex:1;min-width:0">
+          <div class="rps-name">${store.n}</div>
+          <div class="rps-badges">
+            <span class="badge" style="background:${cc}22;color:${cc}">${store.chain}</span>
+            <span class="badge" style="background:${route.color}22;color:${route.color}">${route.merch} \xb7 ${route.code||"R"+route.id}</span>
+            <span class="badge" style="background:#f0f0f0;color:#555">${store.v.toLocaleString()} vol</span>
+            <span class="badge" style="background:#f0f0f0;color:#555">${store.d}</span>
+          </div>
+        </div>
+        <button style="background:none;border:none;color:#ccc;cursor:pointer;font-size:13px;padding:0;flex-shrink:0" onclick="event.stopPropagation();zoomTo('${sa}')">&#x1F4CD;</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  document.querySelectorAll(".chain-store-row").forEach(row=>{
+    const idx=parseInt(row.dataset.idx);
+    row.addEventListener("click",(e)=>{if(e.target.tagName==="BUTTON"||e.target.tagName==="INPUT")return;toggleStoreSelect(idx);});
+    const chk=row.querySelector(".rps-check");
+    chk.addEventListener("change",()=>toggleStoreSelect(idx));
+    chk.addEventListener("click",(e)=>e.stopPropagation());
+  });
+
+  if(selectedStores.size===0){startPoint=null;endPoint=null;sameAsStart=false;}
+  document.getElementById("rp-foot").innerHTML=buildSelectorFooter();
+  updateSelUI();
+  document.getElementById("rp").classList.add("open");
+}
+
+// ── Shared footer builder for chain/channel panels ────────────
+function buildSelectorFooter(){
+  return '<div id="sel-hint" style="font-size:11px;color:#aaa">&#9745; Select stores to build an optimized driving route</div>'+
+    '<div id="sel-action" style="display:none">'+
+      '<div id="sel-count-lbl" style="font-size:12px;font-weight:600;color:#003087;margin-bottom:6px"></div>'+
+      '<hr class="pt-divider"/>'+
+      '<div class="pt-row">'+
+        '<span class="pt-icon">&#128994;</span>'+
+        '<input id="start-input" class="pt-input" placeholder="Starting point (optional)" onblur="geocodeInput(&apos;start&apos;)" onkeydown="if(event.key===&apos;Enter&apos;)geocodeInput(&apos;start&apos;)"/>'+
+        '<button class="pt-loc-btn" onclick="useMyLocation(&apos;start&apos;)" title="Use current location">&#x1F4CD;</button>'+
+      '</div>'+
+      '<div id="end-wrap">'+
+        '<div class="pt-row">'+
+          '<span class="pt-icon">&#128308;</span>'+
+          '<input id="end-input" class="pt-input" placeholder="Ending point (optional)" onblur="geocodeInput(&apos;end&apos;)" onkeydown="if(event.key===&apos;Enter&apos;)geocodeInput(&apos;end&apos;)"/>'+
+          '<button class="pt-loc-btn" onclick="useMyLocation(&apos;end&apos;)" title="Use current location">&#x1F4CD;</button>'+
+        '</div>'+
+      '</div>'+
+      '<label style="font-size:11px;color:#666;display:flex;align-items:center;gap:5px;cursor:pointer;margin-bottom:8px">'+
+        '<input type="checkbox" id="same-start-chk" onchange="toggleSameStart()"/> Return to starting point'+
+      '</label>'+
+      '<hr class="pt-divider"/>'+
+      '<div style="display:flex;gap:6px">'+
+        '<button id="gen-route-btn" onclick="generateRoute()" style="flex:1;padding:8px;border-radius:7px;border:none;background:#003087;color:#fff;font-size:12px;font-weight:600;cursor:pointer">&#128506; Optimize Route</button>'+
+        '<button onclick="clearChainSel()" style="padding:8px 10px;border-radius:7px;border:1px solid #ddd;background:#f5f5f5;color:#666;font-size:12px;cursor:pointer">Clear All</button>'+
+      '</div>'+
+    '</div>';
+}
+
+
+// ── Rep Channel Breakdown Panel ───────────────────────────────
+
+function getStoreChannel(chain){
+  for(const [ch,chains] of Object.entries(CHANNEL_MAP)){
+    if(chains.includes(chain)) return ch;
+  }
+  return 'other';
+}
+
+function toggleBDChannel(ch){
+  const body=document.getElementById('bdbody-'+ch);
+  const arr=document.getElementById('bdarr-'+ch);
+  if(!body) return;
+  const opening=body.style.display==='none';
+  body.style.display=opening?'block':'none';
+  if(arr) arr.textContent=opening?'▼':'▶';
+}
+
+function toggleBDChain(uid){
+  const el=document.getElementById('bdstores-'+uid);
+  const arr=document.getElementById('bdarrc-'+uid);
+  if(!el) return;
+  const opening=el.style.display==='none';
+  el.style.display=opening?'block':'none';
+  if(arr) arr.textContent=opening?'▼':'▶';
+}
+
+const DAY_NAMES={M:'Monday',T:'Tuesday',W:'Wednesday',R:'Thursday',F:'Friday',S:'Saturday',U:'Sunday'};
+let currentDayPanel=null;
+
+// Generic breakdown renderer — takes [{store,route}] items
+function renderBreakdownItems(items, opts){
+  opts=opts||{};
+  const chOrder=['gas','dollar','drug','ots','other'];
+  const channelData={};
+  items.forEach(({store,route})=>{
+    const ch=getStoreChannel(store.chain);
+    if(!channelData[ch]) channelData[ch]={items:[],vol:0,chains:{}};
+    channelData[ch].items.push({store,route});
+    channelData[ch].vol+=store.v;
+    if(!channelData[ch].chains[store.chain]) channelData[ch].chains[store.chain]={items:[],vol:0};
+    channelData[ch].chains[store.chain].items.push({store,route});
+    channelData[ch].chains[store.chain].vol+=store.v;
+  });
+
+  let html='<div style="padding:8px 10px">';
+  chOrder.forEach(ch=>{
+    const chd=channelData[ch];
+    if(!chd) return;
+    const meta=CHANNEL_META[ch]||{label:ch,color:'#666'};
+    const icon=meta.label.match(/^\S+/)?.[0]||'';
+    const label=meta.label.replace(/^\S+\s*/,'');
+    const maxCount=Math.max(...Object.values(chd.chains).map(g=>g.items.length));
+    html+=`<div style="border:1px solid #e8eaf0;border-radius:8px;overflow:hidden;margin-bottom:8px">
+      <div onclick="toggleBDChannel('${ch}')" style="display:flex;align-items:center;gap:9px;padding:10px 12px;cursor:pointer;background:${meta.color}0f;user-select:none">
+        <span style="font-size:16px;flex-shrink:0">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:13px;color:${meta.color}">${label}</div>
+          <div style="font-size:11px;color:#888;margin-top:1px">${chd.items.length} store${chd.items.length!==1?'s':''} · ${chd.vol.toLocaleString(undefined,{maximumFractionDigits:0})} vol/wk</div>
+        </div>
+        <span style="background:${meta.color};color:#fff;border-radius:99px;padding:2px 9px;font-size:12px;font-weight:700;flex-shrink:0">${chd.items.length}</span>
+        <span id="bdarr-${ch}" style="color:#aaa;font-size:11px;width:12px;text-align:center">▶</span>
+      </div>
+      <div id="bdbody-${ch}" style="display:none;background:#fff;padding:6px 10px 8px">`;
+    Object.entries(chd.chains)
+      .sort((a,b)=>b[1].items.length-a[1].items.length)
+      .forEach(([chain,cg])=>{
+        const cc=CHAIN_META[chain]||'#888';
+        const pct=Math.max(8,Math.round((cg.items.length/maxCount)*100));
+        const uid=(ch+'_'+chain).replace(/[^a-z0-9]/gi,'_');
+        html+=`<div onclick="toggleBDChain('${uid}')" style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;border-radius:5px;user-select:none" onmouseover="this.style.background='#f5f7ff'" onmouseout="this.style.background=''">
+          <div style="width:9px;height:9px;border-radius:50%;background:${cc};flex-shrink:0"></div>
+          <div style="font-size:12px;font-weight:600;color:#333;min-width:90px">${chain}</div>
+          <div style="flex:1;background:#f0f0f0;border-radius:99px;height:6px;overflow:hidden">
+            <div style="height:6px;border-radius:99px;background:${cc};width:${pct}%"></div>
+          </div>
+          <div style="font-size:11.5px;color:#666;white-space:nowrap;min-width:54px;text-align:right">${cg.items.length} store${cg.items.length!==1?'s':''}</div>
+          <span id="bdarrc-${uid}" style="color:#ccc;font-size:10px;width:12px;text-align:center;flex-shrink:0">▶</span>
+        </div>
+        <div id="bdstores-${uid}" style="display:none;background:#f8f9ff;border-radius:6px;margin:2px 0 4px;overflow:hidden">
+          ${cg.items.sort((a,b)=>b.store.v-a.store.v).map(({store,route})=>{
+            const sa=store.a.replace(/'/g,"\\'");
+            const routeNote=opts.showRoute?`<span style="font-size:10px;color:${route.color};white-space:nowrap;margin-right:4px">${route.merch}</span>`:'';
+            return `<div onclick="zoomTo('${sa}')" style="display:flex;align-items:center;gap:4px;padding:6px 10px;cursor:pointer;border-bottom:1px solid #eef0f5;font-size:11.5px" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background=''">
+              <div style="flex:1;color:#333;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${store.n}</div>
+              ${routeNote}
+              <div style="color:#888;white-space:nowrap;font-size:11px">${store.v.toLocaleString(undefined,{maximumFractionDigits:0})} vol</div>
+              <div style="color:#aaa;white-space:nowrap;font-size:10.5px;min-width:22px;text-align:right">${store.d}</div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      });
+    html+='</div></div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+function openDayPanel(day){
+  clearSavedRoute();
+  currentDayPanel=day; currentChain=null; currentChannelId=null;
+  const oldStrip=document.querySelector('.ots-cat-strip');
+  if(oldStrip) oldStrip.remove();
+
+  const dayName=DAY_NAMES[day]||day;
+  // Filter all stores serviced on this day
+  const dayItems=allMarkers.filter(({store})=>(store.d||'').toUpperCase().includes(day));
+
+  _chainItems=dayItems; // needed for toggleStoreSelect + route optimizer
+
+  document.getElementById("rp-toggle").style.display="none";
+  document.getElementById("rp-swatch").style.background="#003087";
+  document.getElementById("rp-merch").textContent=dayName;
+  const tv=dayItems.reduce((s,{store})=>s+store.v,0);
+  document.getElementById("rp-sub").textContent=
+    `${dayItems.length} store${dayItems.length!==1?'s':''} serviced on ${dayName}s · ${tv.toLocaleString(undefined,{maximumFractionDigits:0})} vol/wk`;
+
+  document.getElementById("rp-stores").innerHTML=renderBreakdownItems(dayItems,{showRoute:true});
+
+  // Attach checkboxes via data-idx for route optimizer
+  document.querySelectorAll(".chain-store-row").forEach(row=>{
+    const idx=parseInt(row.dataset.idx);
+    if(isNaN(idx)) return;
+    row.addEventListener("click",(e)=>{if(e.target.tagName==="BUTTON"||e.target.tagName==="INPUT")return;toggleStoreSelect(idx);});
+    const chk=row.querySelector(".rps-check");
+    if(chk){chk.addEventListener("change",()=>toggleStoreSelect(idx));chk.addEventListener("click",(e)=>e.stopPropagation());}
+  });
+
+  if(selectedStores.size===0){startPoint=null;endPoint=null;sameAsStart=false;}
+  document.getElementById("rp-foot").innerHTML=buildSelectorFooter();
+  updateSelUI();
+  document.getElementById("rp").classList.add("open");
+}
+
+
+function renderRepBreakdown(r){
+  const items=allMarkers.filter(({store})=>r.stores.some(s=>s.a===store.a&&s.n===store.n));
+  document.getElementById('rp-stores').innerHTML=renderBreakdownItems(items,{showRoute:false});
+}
+
+// ── Self-Test Runner (open browser console and type runSelfTest()) ──
+function runSelfTest(){
+  const results=[], pass=s=>{results.push("✅ "+s);}, fail=s=>{results.push("❌ "+s);};
+  // 1. Routes loaded
+  if(ROUTES&&ROUTES.length>0) pass("ROUTES: "+ROUTES.length+" routes loaded");
+  else fail("ROUTES: empty or not loaded");
+  // 2. Store count
+  const totalStores=ROUTES.flatMap(r=>r.stores).length;
+  if(totalStores>0) pass("Stores: "+totalStores+" stores in ROUTES");
+  else fail("Stores: no stores found");
+  // 3. allMarkers (geocoded)
+  if(allMarkers&&allMarkers.length>0) pass("Markers: "+allMarkers.length+" geocoded and placed");
+  else fail("Markers: none placed — geocoding may not be complete");
+  const pct=Math.round(allMarkers.length/totalStores*100);
+  if(pct<90) fail("Geocoding: only "+pct+"% complete ("+allMarkers.length+"/"+totalStores+")");
+  else pass("Geocoding: "+pct+"% complete");
+  // 4. Chain detection
+  const chains=new Set(allMarkers.map(m=>m.store.chain));
+  if(chains.size>0) pass("Chains detected: "+[...chains].join(", "));
+  else fail("Chain detection: no chains assigned");
+  // 5. OTS sub-categories
+  const otsCats=new Set(allMarkers.filter(m=>m.store.chain==="OTS").map(m=>m.store.otsCategory));
+  if(otsCats.size>0) pass("OTS categories: "+[...otsCats].join(", "));
+  else fail("OTS categories: none assigned — check getOTSCategory()");
+  // 6. CHANNEL_MAP
+  const gasChains=CHANNEL_MAP.gas||[];
+  if(gasChains.length>0) pass("CHANNEL_MAP: "+Object.keys(CHANNEL_MAP).join(", "));
+  else fail("CHANNEL_MAP: empty or missing");
+  // 7. Day filter
+  const weds=allMarkers.filter(({store})=>(store.d||"").includes("W"));
+  if(weds.length>0) pass("Day filter (W): "+weds.length+" Wednesday stores found");
+  else fail("Day filter (W): no Wednesday stores — check d field");
+  // 8. Key functions exist
+  const fns=["toggleDay","openChainPanel","openChannelPanel","openDayPanel","openPanel",
+              "generateRoute","exportPreGeocoded","renderBreakdownItems","clearSavedRoute"];
+  fns.forEach(fn=>{
+    if(typeof window[fn]==="function") pass("Function: "+fn+"()");
+    else fail("Function MISSING: "+fn+"()");
+  });
+  // 9. Sentinel markers in source
+  const src=document.documentElement.outerHTML
+    .replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">");
+  if(src.includes("//__ROUTES_DATA_START__")) pass("Sentinel: //__ROUTES_DATA_START__ found");
+  else fail("Sentinel: //__ROUTES_DATA_START__ MISSING — export will fail");
+  if(src.includes("//__ROUTES_DATA_END__")) pass("Sentinel: //__ROUTES_DATA_END__ found");
+  else fail("Sentinel: //__ROUTES_DATA_END__ MISSING — export will fail");
+  // 10. Cache
+  const cache=loadCache();
+  const cached=Object.keys(cache).length;
+  if(cached>0) pass("Cache: "+cached+" addresses cached");
+  else fail("Cache: empty — geocoding not yet complete");
+  // Print summary
+  const passCount=results.filter(r=>r.startsWith("✅")).length;
+  const failCount=results.filter(r=>r.startsWith("❌")).length;
+  console.log("\n=== SELF-TEST RESULTS ===");
+  results.forEach(r=>console.log(r));
+  console.log("\n"+(failCount===0?"🎉 ALL "+passCount+" TESTS PASSED":"⚠️ "+failCount+" FAILED / "+passCount+" PASSED"));
+  return {pass:passCount,fail:failCount,results};
+}
+
+// Init
+async function init(){
+  const map=L.map("map").setView([33.43,-111.89],11);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    attribution:"© <a href='https://openstreetmap.org'>OpenStreetMap</a>",maxZoom:19
+  }).addTo(map);
+  window._map=map;
+  enrichRoutes(ROUTES);
+  buildChainFilters();
+  buildRouteLegend();
+  const total=await placeMarkers(ROUTES);
+  const tv=ROUTES.flatMap(r=>r.stores).reduce((s,x)=>s+x.v,0);
+  document.getElementById("hdr-stats").textContent=`${total} stores · ${tv.toLocaleString()} vol/wk`;
+  document.getElementById("status").textContent=`✅ All ${total} stores loaded · dot = toggle route · name = view details · 257 stores across 4 routes`;
+  refreshVisibility();
+}
+init();
+</script>
+</body>
+</html>
